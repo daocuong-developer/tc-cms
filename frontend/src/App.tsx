@@ -1,15 +1,28 @@
-import React, { useState } from 'react';
-import Layout from './components/layout/Layout';
-import SectionContent from './components/layout/SectionContent';
+import React, { useState } from "react";
+import { Routes, Route } from "react-router-dom";
+import Layout from "./components/layout/Layout";
+import SectionContent from "./components/layout/SectionContent";
+import { LoginForm } from "./components/auth/LoginForm";
+import { Dashboard } from "./components/dashboard/Dashboard";
 
 const App: React.FC = () => {
-  const [activeSection, setActiveSection] = useState('executive');
+    const [activeSection, setActiveSection] = useState("executive");
 
-  return (
-    <Layout activeSection={activeSection} setActiveSection={setActiveSection}>
-      <SectionContent activeSection={activeSection} />
-    </Layout>
-  );
+    return (
+        <Routes>
+            <Route
+                path="/"
+                element={
+                    <Layout activeSection={activeSection} setActiveSection={setActiveSection}>
+                        <SectionContent activeSection={activeSection} />
+                    </Layout>
+                }
+            />
+            <Route path="/dashboard" element={<Dashboard />} />
+
+            <Route path="/login" element={<LoginForm />} />
+        </Routes>
+    );
 };
 
 export default App;
