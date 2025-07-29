@@ -1,8 +1,7 @@
-# admin.py
 
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, Role, Permission, Organization, Department # Import các model mới
+from .models import User, Role, Permission, Organization, Department 
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
@@ -26,9 +25,8 @@ class UserAdmin(BaseUserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'full_name', 'password', 'password2'), # Đổi password1, password2 thành password
+            'fields': ('email', 'full_name', 'password', 'password2'),
         }),
-        # Có thể thêm organization và department vào add_fieldsets nếu muốn gán ngay khi tạo user
         ('Organization and Department', {
             'classes': ('wide',),
             'fields': ('organization', 'department'),
