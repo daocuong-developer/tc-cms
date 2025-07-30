@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     
     # Third party apps
     'rest_framework',
-    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist', # add token_blacklist app to enable JWT logout functionality
     'corsheaders',
     
     # Local apps

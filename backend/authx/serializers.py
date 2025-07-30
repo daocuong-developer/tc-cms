@@ -24,15 +24,21 @@ class PermissionSerializer(serializers.ModelSerializer):
         model = Permission
         fields = ['id', 'codename', 'description']
 
+class UserNestedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'full_name', 'username']
+
 class RoleSerializer(serializers.ModelSerializer):
     permissions = PermissionSerializer(many=True, read_only=True)
     permission_ids = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Permission.objects.all(), source='permissions', write_only=True
     ) 
-
+    users = UserNestedSerializer(many=True, read_only=True)
+    
     class Meta:
         model = Role
-        fields = ['id', 'name', 'description', 'permissions', 'permission_ids']
+        fields = ['id', 'name', 'description', 'permissions', 'permission_ids', 'users']
 
 class UserSerializer(serializers.ModelSerializer):
     roles = RoleSerializer(many=True, read_only=True)

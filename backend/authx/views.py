@@ -130,3 +130,4 @@ def logout(request):
         return Response({"detail": "Successfully logged out."})
     except Exception:
         return Response({"detail": "Invalid token."}, status=status.HTTP_400_BAD_REQUEST)
+    
