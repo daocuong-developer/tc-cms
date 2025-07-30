@@ -9,6 +9,7 @@ import AdministrationModule from '../../pages/AdministrationModule';
 import CrossModuleRequirements from '../../pages/CrossModuleRequirements';
 import TechnicalConsiderations from '../../pages/TechnicalConsiderations';
 import RoleList from '../../pages/RoleList';
+import { RolesList } from '../roles/RolesList';
 
 interface SectionContentProps {
   activeSection: string;
@@ -25,7 +26,8 @@ const SectionContent: React.FC<SectionContentProps> = ({ activeSection }) => {
     case 'administration': return <AdministrationModule />;
     case 'cross-module': return <CrossModuleRequirements />;
     case 'technical': return <TechnicalConsiderations />;
-    case 'role-list': return <RoleList />;
+    // case 'role-list': return <RoleList />;
+    case 'role-list': return <RolesList />
     default: return <ExecutiveSummary />;
   }
 };

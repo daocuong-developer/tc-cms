@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Card, Title, Table, Container, Loader, Alert, Text } from "@mantine/core";
-import { useHasAnyPermission } from "../../hooks/useHasPermission";
-import { useAuth } from "../../contexts/AuthContext";
+import { useHasAnyPermission } from "@hooks/useHasPermission";
+import { useAuth } from "@contexts/AuthContext";
 import axios from "axios";
+import Cookies from "js-cookie";
 
 interface Role {
     id: number;
@@ -19,20 +20,32 @@ export const RolesList = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const token = Cookies.get("access_token");
+
     useEffect(() => {
         if (!canManageRoles) return;
         setLoading(true);
         axios
-            .get("/api/auth/roles/")
-            .then((res) => setRoles(res.data))
-            .catch(() => setError("Failed to fetch roles"))
+            .get("http://localhost:8000/api/auth/roles/", {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                withCredentials: true,
+            })
+            .then((res) => {
+                setRoles(res.data);
+            })
+            .catch((err) => {
+                console.error("❌ Error fetching roles:", err);
+                setError("Failed to fetch roles");
+            })
             .finally(() => setLoading(false));
     }, [canManageRoles]);
 
     if (authLoading || loading) return <Loader />;
     if (!canManageRoles) return <Alert color="red">You do not have permission to view roles.</Alert>;
     if (error) return <Alert color="red">{error}</Alert>;
-    console.log(roles);
+
     return (
         <Container size="lg" py="xl">
             <Card withBorder p="md">
