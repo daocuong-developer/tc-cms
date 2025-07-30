@@ -35,7 +35,7 @@ class RoleSerializer(serializers.ModelSerializer):
         many=True, queryset=Permission.objects.all(), source='permissions', write_only=True
     ) 
     users = UserNestedSerializer(many=True, read_only=True)
-    
+
     class Meta:
         model = Role
         fields = ['id', 'name', 'description', 'permissions', 'permission_ids', 'users']
@@ -96,16 +96,10 @@ class UserSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True)
-    organization_id = serializers.PrimaryKeyRelatedField(
-        queryset = Organization.objects.all(), source = 'organization', write_only = True, required = True, allow_null=True
-     )
-    department_id = serializers.PrimaryKeyRelatedField(
-        queryset = Department.objects.all(), source='department', write_only =True, required=True, allow_null=True
-    )
-
+    
     class Meta:
         model = User
-        fields = ['email', 'full_name', 'password', 'password_confirm', 'username', 'organization_id', 'department_id']
+        fields = ['email', 'full_name', 'password', 'password_confirm', 'username']
         extra_kwargs = {
             'username': {'required': False}
         }
