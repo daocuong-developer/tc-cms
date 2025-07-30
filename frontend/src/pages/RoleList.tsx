@@ -15,19 +15,6 @@ const RoleList: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // useEffect(() => {
-    //     setLoading(true);
-    //     axios
-    //         .get("/api/auth/roles/")
-    //         .then((res) => {
-    //             console.log(res.data);
-    //             setRoles(res.data);
-    //         })
-
-    //         .catch(() => setError("Failed to fetch roles"))
-    //         .finally(() => setLoading(false));
-    // }, []);
-
     useEffect(() => {
         setLoading(true);
         api.get("/auth/roles/")

@@ -5,6 +5,7 @@ import "./index.css";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { BrowserRouter } from "react-router-dom";
 import { MantineProvider } from '@mantine/core';
+import '@mantine/core/styles.css';
 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
