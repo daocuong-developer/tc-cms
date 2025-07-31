@@ -53,13 +53,18 @@ class UserSerializer(serializers.ModelSerializer):
     department_id = serializers.PrimaryKeyRelatedField(
         queryset=Department.objects.all(), source='department', write_only=True, required=False, allow_null=True
     )
-    
+
+    last_login = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True) 
+    is_active = serializers.BooleanField(read_only=True) 
+    is_online = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = User
         fields = ['id', 'email', 'full_name', 'username', 'is_staff', 'is_superuser',
+                  'last_login', 'is_active', 'is_online', 
                   'roles', 'role_ids', 'organization', 'organization_id',
                   'department', 'department_id']
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'last_login', 'is_active', 'is_online'] 
         extra_kwargs = {
             'username': {'required': False}, 
             'email': {'required': True}, 
@@ -139,7 +144,6 @@ class LoginSerializer(serializers.Serializer):
         attrs['user'] = user
         return attrs
 
-
 # NEW: Serializer để trả về User và Permissions của họ sau khi đăng nhập
 class UserAuthSerializer(serializers.ModelSerializer):
     roles = RoleSerializer(many=True, read_only=True)
@@ -147,9 +151,12 @@ class UserAuthSerializer(serializers.ModelSerializer):
     department = DepartmentSerializer(read_only=True)
     permissions = serializers.SerializerMethodField() 
     
+    last_login = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
+    is_active = serializers.BooleanField(read_only=True) 
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'full_name', 'is_staff', 'is_superuser',
+                  'last_login', 'is_active', 
                   'roles', 'organization', 'department', 'permissions')
 
     def get_permissions(self, obj):

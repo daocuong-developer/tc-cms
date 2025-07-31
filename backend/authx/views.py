@@ -28,6 +28,10 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
         user = serializer.validated_data['user'] 
 
+         # Cập nhật trạng thái online khi đăng nhập thành công
+        user.is_online = True
+        user.save()
+
         # Tạo token
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
@@ -41,7 +45,8 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     
     
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all().order_by('email')
+    queryset = User.objects.all().select_related('organization', 'department').prefetch_related('roles', 'roles__permissions').order_by('email')
+    # queryset = User.objects.all().order_by('email')
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated] 
 
@@ -57,7 +62,6 @@ class UserViewSet(viewsets.ModelViewSet):
                 return [IsAuthenticated()]
             return [IsAdminUser()]
         return [IsAuthenticated()]
-
 
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def register(self, request):
@@ -127,6 +131,12 @@ def logout(request):
         refresh_token = request.data["refresh"]
         token = RefreshToken(refresh_token)
         token.blacklist()
+
+        # Cập nhật trạng thái online khi đăng xuất
+        user = request.user
+        user.is_online = False
+        user.save()
+
         return Response({"detail": "Successfully logged out."})
     except Exception:
         return Response({"detail": "Invalid token."}, status=status.HTTP_400_BAD_REQUEST)

@@ -46,6 +46,10 @@ class User(AbstractUser):
     REQUIRED_FIELDS = ['username']
 
    
+    # NEW: Thêm trường để theo dõi trạng thái online và thời gian đăng xuất
+    is_online = models.BooleanField(default=False)
+    
+    
     organization = models.ForeignKey(
         'Organization',  
         on_delete=models.SET_NULL,
