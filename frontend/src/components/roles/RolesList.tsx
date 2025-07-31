@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
-import { Card, Title, Table, Container, Loader, Alert, Text } from "@mantine/core";
+import { useEffect, useState, useCallback } from "react";
+import { Card, Title, Table, Container, Loader, Alert, Text, Button, Group, Modal } from "@mantine/core"; // Thêm Button, Group, Modal
+import { useDisclosure } from "@mantine/hooks";
 import { useHasAnyPermission } from "@hooks/useHasPermission";
 import { useAuth } from "@contexts/AuthContext";
 import axios from "axios";
 import Cookies from "js-cookie";
+import RoleCreateForm from "./RoleCreateForm";
 
 interface Role {
     id: number;
@@ -19,14 +21,15 @@ export const RolesList = () => {
     const [roles, setRoles] = useState<Role[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [opened, { open, close }] = useDisclosure(false);
 
     const token = Cookies.get("access_token");
 
-    useEffect(() => {
+    const fetchRoles = useCallback(() => {
         if (!canManageRoles) return;
         setLoading(true);
         axios
-            .get("http://localhost:8000/api/auth/roles/", {
+            .get("/api/auth/roles/", {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
@@ -40,7 +43,16 @@ export const RolesList = () => {
                 setError("Failed to fetch roles");
             })
             .finally(() => setLoading(false));
-    }, [canManageRoles]);
+    }, [canManageRoles, token]);
+
+    useEffect(() => {
+        fetchRoles();
+    }, [fetchRoles]);
+
+    const handleRoleCreated = () => {
+        fetchRoles();
+        close();
+    };
 
     if (authLoading || loading) return <Loader />;
     if (!canManageRoles) return <Alert color="red">You do not have permission to view roles.</Alert>;
@@ -48,6 +60,14 @@ export const RolesList = () => {
 
     return (
         <Container size="lg" py="xl">
+            <Group justify="flex-end" mb="md">
+                <Button onClick={open}>Create New Role</Button>
+            </Group>
+
+            <Modal opened={opened} onClose={close} title="Create New Role" centered size={"xl"}>
+                <RoleCreateForm onRoleCreated={handleRoleCreated} onClose={close} />
+            </Modal>
+
             <Card withBorder p="md">
                 <Title order={2} mb="md">
                     Roles
@@ -69,7 +89,7 @@ export const RolesList = () => {
                                 <td>{role.name}</td>
                                 <td>{role.description}</td>
                                 <td>{role.permissions.map((p) => p.codename).join(", ")}</td>
-                                <td>{role.users.map((u) => u.full_name).join(", ")}</td>
+                                <td>{role.users.map((u) => u.full_name || u.username || "N/A").join(", ")}</td>
                             </tr>
                         ))}
                     </tbody>

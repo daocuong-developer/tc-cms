@@ -66,14 +66,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    // const hasPermission = (codename: string): boolean => {
-    //     if (!user) return false;
-    //     console.log(user.permissions);
-    //     console.log(codename);
-
-    //     return user.roles.some((role) => role.permissions.some((permission) => permission.codename === codename));
-    // };
-
     const hasPermission = (codename: string): boolean => {
         if (!user) return false;
 
