@@ -8,6 +8,7 @@ export interface UserDetail {
     role: string;
     department: string;
     is_active: boolean;
+    is_online: boolean;
     last_login: string;
     roles: { id: string; name: string; permissions: { codename: string }[] }[];
 }

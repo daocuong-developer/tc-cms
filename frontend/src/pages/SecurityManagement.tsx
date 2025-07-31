@@ -35,25 +35,10 @@ const SecurityManagement: React.FC = () => {
         try {
             if (activeTab === "users" && hasPermission("view_user")) {
                 const fetchedUsers = await securityService.getUsers();
-
-                setUsers(
-                    fetchedUsers.map((u) => ({
-                        ...u,
-                        status: u.is_active ? "active" : "inactive",
-                        lastLogin: u.last_login ?? "N/A",
-                        role: u.roles && u.roles.length > 0 ? u.roles.map((r) => r.name).join(", ") : "No Role",
-                        department: u.department?.name ?? "No Department",
-                    }))
-                );
+                setUsers(fetchedUsers);
             } else if (activeTab === "roles" && hasPermission("view_role")) {
                 const fetchedRoles = await securityService.getRoles();
-                setRoles(
-                    fetchedRoles.map((r) => ({
-                        ...r,
-                        userCount: r.user_count,
-                        permissions: r.permissions.map((p) => p.codename),
-                    }))
-                );
+                setRoles(fetchedRoles);
             } else if (activeTab === "departments" && hasPermission("view_department")) {
                 const fetchedDepartments = await securityService.getDepartments();
                 setDepartments(fetchedDepartments);
@@ -102,12 +87,34 @@ const SecurityManagement: React.FC = () => {
         },
     ];
 
-    const getStatusBadge = (status: string) => {
-        const baseClasses = "px-2 py-1 text-xs font-medium rounded-full";
-        if (status === "active") {
-            return `${baseClasses} bg-green-100 text-green-800`;
+    const getUserStatus = (user: UserDetail) => {
+        if (user.is_online) {
+            return "Active";
         }
-        return `${baseClasses} bg-red-100 text-red-800`;
+
+        if (user.is_active) {
+            return "Inactive";
+        }
+
+        return "Inactive";
+    };
+
+    const getUserStatusBadge = (status: string) => {
+        const baseClasses = "px-2 py-1 text-xs font-medium rounded-full";
+        switch (status) {
+            case "Active":
+                return `${baseClasses} bg-green-100 text-green-800`;
+            case "Superuser":
+                return `${baseClasses} bg-purple-100 text-purple-800`;
+            case "Staff":
+                return `${baseClasses} bg-blue-100 text-blue-800`;
+            // case "Active":
+            //     return `${baseClasses} bg-gray-100 text-gray-800`;
+            case "Inactive":
+                return `${baseClasses} bg-red-100 text-red-800`;
+            default:
+                return `${baseClasses} bg-gray-100 text-gray-800`;
+        }
     };
 
     const getPermissionTypeBadge = (type: string) => {
@@ -181,24 +188,28 @@ const SecurityManagement: React.FC = () => {
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        {/* <tbody className="bg-white divide-y divide-gray-200">
                             {users.map((user) => (
                                 <tr key={user.id} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div>
-                                            <div className="text-sm font-medium text-gray-900">{user.username}</div>
+                                            <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
                                             <div className="text-sm text-gray-500">{user.email}</div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.role}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {user.department}
+                                        {user.roles && user.roles.length > 0 ? user.roles[0].name : "N/A"}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {user.department ? user.department.name : "N/A"}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={getStatusBadge(user.status)}>{user.status}</span>
+                                        <span className={getUserStatusBadge(getUserStatus(user))}>
+                                            {getUserStatus(user)}
+                                        </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {user.lastLogin}
+                                        {user.last_login ? new Date(user.last_login).toLocaleString() : "Chưa từng"}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex items-center justify-end space-x-2">
@@ -221,6 +232,43 @@ const SecurityManagement: React.FC = () => {
                                     </td>
                                 </tr>
                             ))}
+                        </tbody> */}
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {users.map((user) => {
+                                // NEW: Thêm console.log() để xem dữ liệu
+                                console.log("User data:", user);
+                                console.log("Calculated Status:", getUserStatus(user));
+
+                                return (
+                                    <tr key={user.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div>
+                                                <div className="text-sm font-medium text-gray-900">
+                                                    {user.full_name}
+                                                </div>
+                                                <div className="text-sm text-gray-500">{user.email}</div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {user.roles && user.roles.length > 0 ? user.roles[0].name : "N/A"}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {user.department ? user.department.name : "N/A"}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={getUserStatusBadge(getUserStatus(user))}>
+                                                {getUserStatus(user)}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {user.last_login ? new Date(user.last_login).toLocaleString() : "Chưa từng"}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            {/* ... các nút hành động ... */}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
@@ -256,7 +304,7 @@ const SecurityManagement: React.FC = () => {
                                     <Shield className="h-8 w-8 text-green-600 mr-3" />
                                     <div>
                                         <h4 className="text-lg font-medium text-gray-900">{role.name}</h4>
-                                        <p className="text-sm text-gray-500">{role.userCount} users</p>
+                                        <p className="text-sm text-gray-500">{role.user_count} users</p>
                                     </div>
                                 </div>
                                 {(hasPermission("change_role") || hasPermission("delete_role")) && (
@@ -323,20 +371,6 @@ const SecurityManagement: React.FC = () => {
                                 )}
                             </div>
                             <p className="text-sm text-gray-600 mb-4">{department.description}</p>
-                            {/* Loại bỏ hiển thị Assigned Roles vì nó không có trong dữ liệu API của DepartmentDetail */}
-                            {/* <div className="space-y-2">
-                                <p className="text-xs font-medium text-gray-500 uppercase">Assigned Roles</p>
-                                <div className="flex flex-wrap gap-1">
-                                    {department.roles.map((role, index) => (
-                                        <span
-                                            key={index}
-                                            className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded"
-                                        >
-                                            {role}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div> */}
                         </div>
                     ))}
                 </div>

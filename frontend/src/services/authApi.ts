@@ -36,14 +36,21 @@ export const authApi = {
         return response.data;
     },
 
+    // fix: Ensure tokens are always cleared on logout
     logout: async (): Promise<void> => {
         const refresh_token = Cookies.get("refresh_token");
         console.log("Refresh token gửi đi:", refresh_token);
-        if (refresh_token) {
-            await api.post("/auth/logout/", { refresh: refresh_token });
+
+        try {
+            if (refresh_token) {
+                await api.post("/auth/logout/", { refresh: refresh_token });
+            }
+        } catch (error) {
+            console.error("Logout request failed:");
+        } finally {
+            Cookies.remove("access_token");
+            Cookies.remove("refresh_token");
         }
-        Cookies.remove("access_token");
-        Cookies.remove("refresh_token");
     },
 
     getCurrentUser: async (): Promise<User> => {
@@ -87,4 +94,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-
