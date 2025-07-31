@@ -64,7 +64,6 @@ export const authApi = {
     },
 };
 
-
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -78,7 +77,6 @@ api.interceptors.response.use(
                 originalRequest.headers.Authorization = `Bearer ${access}`;
                 return api(originalRequest);
             } catch (err) {
-                // If refresh fails, logout
                 await authApi.logout();
                 return Promise.reject(error);
             }
@@ -89,3 +87,4 @@ api.interceptors.response.use(
 );
 
 export default api;
+
