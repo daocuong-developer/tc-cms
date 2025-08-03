@@ -48,7 +48,7 @@ class User(AbstractUser):
    
     # NEW: Thêm trường để theo dõi trạng thái online và thời gian đăng xuất
     is_online = models.BooleanField(default=False)
-    
+    last_logout = models.DateTimeField(null=True, blank=True)
     
     organization = models.ForeignKey(
         'Organization',  

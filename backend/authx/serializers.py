@@ -57,11 +57,12 @@ class UserSerializer(serializers.ModelSerializer):
     last_login = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True) 
     is_active = serializers.BooleanField(read_only=True) 
     is_online = serializers.BooleanField(read_only=True)
+    last_logout = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True) 
 
     class Meta:
         model = User
         fields = ['id', 'email', 'full_name', 'username', 'is_staff', 'is_superuser',
-                  'last_login', 'is_active', 'is_online', 
+                  'last_login', 'is_active', 'is_online', 'last_logout', 
                   'roles', 'role_ids', 'organization', 'organization_id',
                   'department', 'department_id']
         read_only_fields = ['id', 'last_login', 'is_active', 'is_online'] 
@@ -153,10 +154,13 @@ class UserAuthSerializer(serializers.ModelSerializer):
     
     last_login = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
     is_active = serializers.BooleanField(read_only=True) 
+    is_online = serializers.BooleanField(read_only=True)
+    last_logout = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
+
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'full_name', 'is_staff', 'is_superuser',
-                  'last_login', 'is_active', 
+                  'last_login', 'is_active', 'is_online', 'last_logout',
                   'roles', 'organization', 'department', 'permissions')
 
     def get_permissions(self, obj):

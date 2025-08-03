@@ -15,6 +15,7 @@ from .serializers import (
 
 from .permissions import permission_required
 from .models import Role, Permission, Organization, Department 
+from datetime import datetime, timezone
 
 User = get_user_model()
     
@@ -135,6 +136,7 @@ def logout(request):
         # Cập nhật trạng thái online khi đăng xuất
         user = request.user
         user.is_online = False
+        user.last_logout = datetime.now(timezone.utc)
         user.save()
 
         return Response({"detail": "Successfully logged out."})
