@@ -87,6 +87,26 @@ const SecurityManagement: React.FC = () => {
         },
     ];
 
+    const formatDateTime = (dateString: string | null | undefined) => {
+        if (!dateString) return "Chưa từng";
+
+        // Chuyển "2025-08-03 14:45:21" -> "2025-08-03T14:45:21Z"
+        const isoString = dateString.replace(" ", "T") + "Z";
+
+        const date = new Date(isoString);
+        return date
+            .toLocaleString("vi-VN", {
+                timeZone: "Asia/Ho_Chi_Minh",
+                hour12: false,
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+            })
+            .replace(",", "");
+    };
+
     const getUserStatus = (user: UserDetail) => {
         if (user.is_online) {
             return "Active";
@@ -188,57 +208,10 @@ const SecurityManagement: React.FC = () => {
                                 </th>
                             </tr>
                         </thead>
-                        {/* <tbody className="bg-white divide-y divide-gray-200">
-                            {users.map((user) => (
-                                <tr key={user.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div>
-                                            <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
-                                            <div className="text-sm text-gray-500">{user.email}</div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {user.roles && user.roles.length > 0 ? user.roles[0].name : "N/A"}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {user.department ? user.department.name : "N/A"}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={getUserStatusBadge(getUserStatus(user))}>
-                                            {getUserStatus(user)}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {user.last_login ? new Date(user.last_login).toLocaleString() : "Chưa từng"}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <div className="flex items-center justify-end space-x-2">
-                                            {hasPermission("view_user") && (
-                                                <button className="text-blue-600 hover:text-blue-900">
-                                                    <Eye className="h-4 w-4" />
-                                                </button>
-                                            )}
-                                            {hasPermission("change_user") && (
-                                                <button className="text-gray-600 hover:text-gray-900">
-                                                    <Edit className="h-4 w-4" />
-                                                </button>
-                                            )}
-                                            {hasPermission("delete_user") && (
-                                                <button className="text-red-600 hover:text-red-900">
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody> */}
+
                         <tbody className="bg-white divide-y divide-gray-200">
                             {users.map((user) => {
-                                // NEW: Thêm console.log() để xem dữ liệu
                                 console.log("User data:", user);
-                                console.log("Calculated Status:", getUserStatus(user));
-
                                 return (
                                     <tr key={user.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4 whitespace-nowrap">
@@ -261,10 +234,26 @@ const SecurityManagement: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {user.last_login ? new Date(user.last_login).toLocaleString() : "Chưa từng"}
+                                            {formatDateTime(user.last_logout)}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            {/* ... các nút hành động ... */}
+                                            <div className="flex items-center justify-end space-x-2">
+                                                {hasPermission("view_user") && (
+                                                    <button className="text-blue-600 hover:text-blue-900">
+                                                        <Eye className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                                {hasPermission("change_user") && (
+                                                    <button className="text-gray-600 hover:text-gray-900">
+                                                        <Edit className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                                {hasPermission("delete_user") && (
+                                                    <button className="text-red-600 hover:text-red-900">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 );

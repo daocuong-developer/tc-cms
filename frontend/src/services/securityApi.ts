@@ -10,6 +10,7 @@ export interface UserDetail {
     is_active: boolean;
     is_online: boolean;
     last_login: string;
+    last_logout: string;
     roles: { id: string; name: string; permissions: { codename: string }[] }[];
 }
 
