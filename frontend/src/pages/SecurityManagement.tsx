@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import {
     Users,
@@ -15,6 +16,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@contexts/AuthContext";
 import { securityService, UserDetail, RoleDetail, PermissionDetail, DepartmentDetail } from "@services/securityApi";
+import UserModal from "@components/models/UserModal";
+import ConfirmDialog from "@components/models/ConfirmDialog";
 
 const SecurityManagement: React.FC = () => {
     const { user, hasPermission, isLoading: authLoading } = useAuth();
@@ -28,6 +31,31 @@ const SecurityManagement: React.FC = () => {
 
     const [loadingData, setLoadingData] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Modal states
+    const [userModal, setUserModal] = useState<{
+        isOpen: boolean;
+        mode: "view" | "edit" | "create";
+        user?: UserDetail | null;
+    }>({
+        isOpen: false,
+        mode: "view",
+        user: null,
+    });
+
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        loading: boolean;
+    }>({
+        isOpen: false,
+        title: "",
+        message: "",
+        onConfirm: () => {},
+        loading: false,
+    });
 
     const fetchData = useCallback(async () => {
         setLoadingData(true);
@@ -86,6 +114,71 @@ const SecurityManagement: React.FC = () => {
             permission: "view_permission",
         },
     ];
+
+    // User action handlers
+    const handleViewUser = (user: UserDetail) => {
+        setUserModal({
+            isOpen: true,
+            mode: "view",
+            user,
+        });
+    };
+
+    const handleEditUser = (user: UserDetail) => {
+        setUserModal({
+            isOpen: true,
+            mode: "edit",
+            user,
+        });
+    };
+
+    const handleCreateUser = () => {
+        setUserModal({
+            isOpen: true,
+            mode: "create",
+            user: null,
+        });
+    };
+
+    const handleDeleteUser = (user: UserDetail) => {
+        setConfirmDialog({
+            isOpen: true,
+            title: "Delete User",
+            message: `Are you sure you want to delete user "${
+                user.full_name || user.username
+            }"? This action cannot be undone.`,
+            onConfirm: () => confirmDeleteUser(user.id),
+            loading: false,
+        });
+    };
+
+    const confirmDeleteUser = async (userId: string) => {
+        setConfirmDialog((prev) => ({ ...prev, loading: true }));
+        try {
+            await securityService.deleteUser(userId);
+            setUsers(users.filter((u) => u.id !== userId));
+            setConfirmDialog((prev) => ({ ...prev, isOpen: false, loading: false }));
+        } catch (error) {
+            console.error("Error deleting user:", error);
+            setConfirmDialog((prev) => ({ ...prev, loading: false }));
+        }
+    };
+
+    const handleSaveUser = async (userData: any) => {
+        try {
+            if (userModal.mode === "create") {
+                const newUser = await securityService.createUser(userData);
+                setUsers([...users, newUser]);
+            } else if (userModal.mode === "edit" && userModal.user) {
+                const updatedUser = await securityService.updateUser(userModal.user.id, userData);
+                setUsers(users.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
+            }
+            setUserModal({ isOpen: false, mode: "view", user: null });
+        } catch (error) {
+            console.error("Error saving user:", error);
+            throw error;
+        }
+    };
 
     const formatDateTime = (dateString: string | null | undefined) => {
         if (!dateString) return "Chưa từng";
@@ -173,7 +266,10 @@ const SecurityManagement: React.FC = () => {
                     </button>
                 </div>
                 {hasPermission("add_user") && (
-                    <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    <button
+                        onClick={handleCreateUser}
+                        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
                         <UserPlus className="h-4 w-4 mr-2" />
                         Add User
                     </button>
@@ -211,7 +307,6 @@ const SecurityManagement: React.FC = () => {
 
                         <tbody className="bg-white divide-y divide-gray-200">
                             {users.map((user) => {
-                                console.log("User data:", user);
                                 return (
                                     <tr key={user.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4 whitespace-nowrap">
@@ -239,17 +334,29 @@ const SecurityManagement: React.FC = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end space-x-2">
                                                 {hasPermission("view_user") && (
-                                                    <button className="text-blue-600 hover:text-blue-900">
+                                                    <button
+                                                        onClick={() => handleViewUser(user)}
+                                                        className="text-blue-600 hover:text-blue-900"
+                                                        title="View user"
+                                                    >
                                                         <Eye className="h-4 w-4" />
                                                     </button>
                                                 )}
                                                 {hasPermission("change_user") && (
-                                                    <button className="text-gray-600 hover:text-gray-900">
+                                                    <button
+                                                        onClick={() => handleEditUser(user)}
+                                                        className="text-gray-600 hover:text-gray-900"
+                                                        title="Edit user"
+                                                    >
                                                         <Edit className="h-4 w-4" />
                                                     </button>
                                                 )}
                                                 {hasPermission("delete_user") && (
-                                                    <button className="text-red-600 hover:text-red-900">
+                                                    <button
+                                                        onClick={() => handleDeleteUser(user)}
+                                                        className="text-red-600 hover:text-red-900"
+                                                        title="Delete user"
+                                                    >
                                                         <Trash2 className="h-4 w-4" />
                                                     </button>
                                                 )}
@@ -510,6 +617,28 @@ const SecurityManagement: React.FC = () => {
                         </div>
                     )}
             </div>
+
+            {/* Modals */}
+            <UserModal
+                isOpen={userModal.isOpen}
+                onClose={() => setUserModal({ isOpen: false, mode: "view", user: null })}
+                user={userModal.user}
+                mode={userModal.mode}
+                roles={roles}
+                departments={departments}
+                onSave={handleSaveUser}
+            />
+
+            <ConfirmDialog
+                isOpen={confirmDialog.isOpen}
+                onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmDialog.onConfirm}
+                title={confirmDialog.title}
+                message={confirmDialog.message}
+                loading={confirmDialog.loading}
+                confirmText="Delete"
+                type="danger"
+            />
         </div>
     );
 };

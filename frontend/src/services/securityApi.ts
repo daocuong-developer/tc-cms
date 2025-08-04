@@ -5,6 +5,11 @@ export interface UserDetail {
     id: string;
     username: string;
     email: string;
+    full_name?: string;
+    phone?: string;
+    position?: string;
+    address?: string;
+    notes?: string;
     role: string;
     department: string;
     is_active: boolean;
