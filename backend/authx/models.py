@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+
 # --- NEW: Organization Model ---
 class Organization(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -45,7 +46,6 @@ class User(AbstractUser):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
-   
     # NEW: Thêm trường để theo dõi trạng thái online và thời gian đăng xuất
     is_online = models.BooleanField(default=False)
     last_logout = models.DateTimeField(null=True, blank=True)
@@ -86,8 +86,16 @@ class User(AbstractUser):
     
 # --- Existing Permission Model ---
 class Permission(models.Model):
+    # Old fields
     codename = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
+    
+    # New fields to be added
+    name = models.CharField(max_length=255, blank=True)
+    module = models.CharField(max_length=255, blank=True)
+    type = models.CharField(max_length=50, blank=True)
+    
+    # Other fields
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -98,7 +106,8 @@ class Permission(models.Model):
 
     def __str__(self):
         return self.codename
-
+    
+    
 # --- Existing Role Model ---
 class Role(models.Model):
     name = models.CharField(max_length=100, unique=True)

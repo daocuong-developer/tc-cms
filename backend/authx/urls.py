@@ -12,7 +12,7 @@ from .views import (
 
 app_name = 'authx'
 router = DefaultRouter()
-router.register(r'users', UserViewSet)
+router.register(r'users', UserViewSet, basename='user')
 router.register(r'roles', RoleViewSet)
 router.register(r'permissions', PermissionViewSet)
 router.register(r'organizations', OrganizationViewSet) 

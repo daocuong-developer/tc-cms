@@ -46,10 +46,13 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     
     
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all().select_related('organization', 'department').prefetch_related('roles', 'roles__permissions').order_by('email')
-    # queryset = User.objects.all().order_by('email')
+    
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated] 
+
+    def get_queryset(self):
+        return User.objects.all().select_related('organization', 'department').prefetch_related('roles')
+
 
     def get_permissions(self):
         if self.action in ['register', 'create']:
@@ -90,7 +93,7 @@ class RoleViewSet(viewsets.ModelViewSet):
 
 # NEW: ViewSet cho Permission
 class PermissionViewSet(viewsets.ModelViewSet):
-    queryset = Permission.objects.all().order_by('codename')
+    queryset = Permission.objects.all()
     serializer_class = PermissionSerializer
     permission_classes = [IsAdminUser] 
 
