@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import {
     Users,
@@ -18,6 +17,7 @@ import { useAuth } from "@contexts/AuthContext";
 import { securityService, UserDetail, RoleDetail, PermissionDetail, DepartmentDetail } from "@services/securityApi";
 import UserModal from "@components/models/UserModal";
 import ConfirmDialog from "@components/models/ConfirmDialog";
+import RoleModal from "@components/models/RoleModal";
 
 const SecurityManagement: React.FC = () => {
     const { user, hasPermission, isLoading: authLoading } = useAuth();
@@ -55,6 +55,16 @@ const SecurityManagement: React.FC = () => {
         message: "",
         onConfirm: () => {},
         loading: false,
+    });
+
+    const [roleModal, setRoleModal] = useState<{
+        isOpen: boolean;
+        mode: "view" | "edit" | "create";
+        role?: RoleDetail | null;
+    }>({
+        isOpen: false,
+        mode: "view",
+        role: null,
     });
 
     const fetchData = useCallback(async () => {
@@ -180,10 +190,72 @@ const SecurityManagement: React.FC = () => {
         }
     };
 
+    // Role action handlers
+    const handleViewRole = (role: RoleDetail) => {
+        setRoleModal({
+            isOpen: true,
+            mode: "view",
+            role,
+        });
+    };
+
+    const handleEditRole = (role: RoleDetail) => {
+        setRoleModal({
+            isOpen: true,
+            mode: "edit",
+            role,
+        });
+    };
+
+    const handleCreateRole = () => {
+        setRoleModal({
+            isOpen: true,
+            mode: "create",
+            role: null,
+        });
+    };
+
+    const handleDeleteRole = (role: RoleDetail) => {
+        setConfirmDialog({
+            isOpen: true,
+            title: "Delete Role",
+            message: `Are you sure you want to delete role "${role.name}"? This action cannot be undone and will affect ${role.user_count} users.`,
+            onConfirm: () => confirmDeleteRole(role.id),
+            loading: false,
+        });
+    };
+
+    const confirmDeleteRole = async (roleId: number) => {
+        setConfirmDialog((prev) => ({ ...prev, loading: true }));
+        try {
+            await securityService.deleteRole(roleId);
+            setRoles(roles.filter((r) => r.id !== roleId));
+            setConfirmDialog((prev) => ({ ...prev, isOpen: false, loading: false }));
+        } catch (error) {
+            console.error("Error deleting role:", error);
+            setConfirmDialog((prev) => ({ ...prev, loading: false }));
+        }
+    };
+
+    const handleSaveRole = async (roleData: any) => {
+        try {
+            if (roleModal.mode === "create") {
+                const newRole = await securityService.createRole(roleData);
+                setRoles([...roles, newRole]);
+            } else if (roleModal.mode === "edit" && roleModal.role) {
+                const updatedRole = await securityService.updateRole(roleModal.role.id, roleData);
+                setRoles(roles.map((r) => (r.id === updatedRole.id ? updatedRole : r)));
+            }
+            setRoleModal({ isOpen: false, mode: "view", role: null });
+        } catch (error) {
+            console.error("Error saving role:", error);
+            throw error;
+        }
+    };
+
     const formatDateTime = (dateString: string | null | undefined) => {
         if (!dateString) return "Chưa từng";
 
-        // Chuyển "2025-08-03 14:45:21" -> "2025-08-03T14:45:21Z"
         const isoString = dateString.replace(" ", "T") + "Z";
 
         const date = new Date(isoString);
@@ -375,9 +447,27 @@ const SecurityManagement: React.FC = () => {
     const renderRoles = () => (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium text-gray-900">Role Management</h3>
+                <div className="flex items-center space-x-4">
+                    <div className="relative">
+                        <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Search roles..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        />
+                    </div>
+                    <button className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        <Filter className="h-4 w-4 mr-2" />
+                        Filter
+                    </button>
+                </div>
                 {hasPermission("add_role") && (
-                    <button className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                    <button
+                        onClick={handleCreateRole}
+                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
                         <Plus className="h-4 w-4 mr-2" />
                         Create Role
                     </button>
@@ -390,46 +480,85 @@ const SecurityManagement: React.FC = () => {
                 <div className="text-red-600">{error}</div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {roles.map((role) => (
-                        <div
-                            key={role.id}
-                            className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
-                        >
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center">
-                                    <Shield className="h-8 w-8 text-green-600 mr-3" />
-                                    <div>
-                                        <h4 className="text-lg font-medium text-gray-900">{role.name}</h4>
-                                        <p className="text-sm text-gray-500">{role.user_count} users</p>
+                    {roles
+                        .filter(
+                            (role) =>
+                                role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                role.description.toLowerCase().includes(searchTerm.toLowerCase())
+                        )
+                        .map((role) => (
+                            <div
+                                key={role.id}
+                                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-all duration-200 hover:border-green-300"
+                            >
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="flex items-center">
+                                        <div className="p-2 bg-green-100 rounded-lg mr-3">
+                                            <Shield className="h-6 w-6 text-green-600" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-lg font-medium text-gray-900">{role.name}</h4>
+                                            <p className="text-sm text-gray-500 flex items-center">
+                                                <Users className="h-4 w-4 mr-1" />
+                                                {role.user_count} users
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
-                                {(hasPermission("change_role") || hasPermission("delete_role")) && (
-                                    <button className="text-gray-400 hover:text-gray-600">
-                                        <MoreVertical className="h-5 w-5" />
-                                    </button>
-                                )}
-                            </div>
-                            <p className="text-sm text-gray-600 mb-4">{role.description}</p>
-                            <div className="space-y-2">
-                                <p className="text-xs font-medium text-gray-500 uppercase">Permissions</p>
-                                <div className="flex flex-wrap gap-1">
-                                    {role.permissions.slice(0, 3).map((permission, index) => (
-                                        <span
-                                            key={index}
-                                            className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
+                                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{role.description}</p>
+                                <div className="space-y-2">
+                                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                        Permissions
+                                    </p>
+                                    <div className="flex flex-wrap gap-1">
+                                        {role.permissions.slice(0, 3).map((permission, index) => (
+                                            <span
+                                                key={index}
+                                                className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                                            >
+                                                {permission.codename.replace("_", " ")}
+                                            </span>
+                                        ))}
+                                        {role.permissions.length > 3 && (
+                                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                                +{role.permissions.length - 3} more
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Action buttons */}
+                                <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end space-x-2">
+                                    {hasPermission("view_role") && (
+                                        <button
+                                            onClick={() => handleViewRole(role)}
+                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            title="View role"
                                         >
-                                            {permission.replace("_", " ")}
-                                        </span>
-                                    ))}
-                                    {role.permissions.length > 3 && (
-                                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                            +{role.permissions.length - 3} more
-                                        </span>
+                                            <Eye className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                    {hasPermission("change_role") && (
+                                        <button
+                                            onClick={() => handleEditRole(role)}
+                                            className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                            title="Edit role"
+                                        >
+                                            <Edit className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                    {hasPermission("delete_role") && (
+                                        <button
+                                            onClick={() => handleDeleteRole(role)}
+                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Delete role"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
                                     )}
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        ))}
                 </div>
             )}
         </div>
@@ -627,6 +756,15 @@ const SecurityManagement: React.FC = () => {
                 roles={roles}
                 departments={departments}
                 onSave={handleSaveUser}
+            />
+
+            <RoleModal
+                isOpen={roleModal.isOpen}
+                onClose={() => setRoleModal({ isOpen: false, mode: "view", role: null })}
+                role={roleModal.role}
+                mode={roleModal.mode}
+                permissions={permissions}
+                onSave={handleSaveRole}
             />
 
             <ConfirmDialog
