@@ -66,14 +66,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    // const hasPermission = (codename: string): boolean => {
-    //     if (!user) return false;
-
-    //     // Tách phần sau dấu ":" nếu có
-    //     const cleanCodename = codename.includes(":") ? codename.split(":")[1] : codename;
-
-    //     return user.roles.some((role) => role.permissions.some((permission) => permission.codename === cleanCodename));
-    // };
 
     const normalizePermission = (code: string): string => {
         return code.trim().toLowerCase().replace(/_?s$/, "");

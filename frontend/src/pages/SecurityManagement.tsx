@@ -12,12 +12,15 @@ import {
     Lock,
     Unlock,
     MoreVertical,
+    Building2,
 } from "lucide-react";
 import { useAuth } from "@contexts/AuthContext";
 import { securityService, UserDetail, RoleDetail, PermissionDetail, DepartmentDetail } from "@services/securityApi";
 import UserModal from "@components/models/UserModal";
 import ConfirmDialog from "@components/models/ConfirmDialog";
 import RoleModal from "@components/models/RoleModal";
+import DepartmentModal from "@components/models/DepartmentModal";
+import PermissionModal from "@components/models/PermissionModal";
 
 const SecurityManagement: React.FC = () => {
     const { user, hasPermission, isLoading: authLoading } = useAuth();
@@ -65,6 +68,26 @@ const SecurityManagement: React.FC = () => {
         isOpen: false,
         mode: "view",
         role: null,
+    });
+
+    const [departmentModal, setDepartmentModal] = useState<{
+        isOpen: boolean;
+        mode: "view" | "edit" | "create";
+        department?: DepartmentDetail | null;
+    }>({
+        isOpen: false,
+        mode: "view",
+        department: null,
+    });
+
+    const [permissionModal, setPermissionModal] = useState<{
+        isOpen: boolean;
+        mode: "view" | "edit" | "create";
+        permission?: PermissionDetail | null;
+    }>({
+        isOpen: false,
+        mode: "view",
+        permission: null,
     });
 
     const fetchData = useCallback(async () => {
@@ -249,6 +272,138 @@ const SecurityManagement: React.FC = () => {
             setRoleModal({ isOpen: false, mode: "view", role: null });
         } catch (error) {
             console.error("Error saving role:", error);
+            throw error;
+        }
+    };
+
+    // Department action handlers
+    const handleViewDepartment = (department: DepartmentDetail) => {
+        setDepartmentModal({
+            isOpen: true,
+            mode: "view",
+            department,
+        });
+    };
+
+    const handleEditDepartment = (department: DepartmentDetail) => {
+        setDepartmentModal({
+            isOpen: true,
+            mode: "edit",
+            department,
+        });
+    };
+
+    const handleCreateDepartment = () => {
+        setDepartmentModal({
+            isOpen: true,
+            mode: "create",
+            department: null,
+        });
+    };
+
+    const handleDeleteDepartment = (department: DepartmentDetail) => {
+        setConfirmDialog({
+            isOpen: true,
+            title: "Delete Department",
+            message: `Are you sure you want to delete department "${department.name}"? This action cannot be undone.`,
+            onConfirm: () => confirmDeleteDepartment(department.id),
+            loading: false,
+        });
+    };
+
+    const confirmDeleteDepartment = async (departmentId: string) => {
+        setConfirmDialog((prev) => ({ ...prev, loading: true }));
+        try {
+            await securityService.deleteDepartment(departmentId);
+            setDepartments(departments.filter((d) => d.id !== departmentId));
+            setConfirmDialog((prev) => ({ ...prev, isOpen: false, loading: false }));
+        } catch (error) {
+            console.error("Error deleting department:", error);
+            setConfirmDialog((prev) => ({ ...prev, loading: false }));
+        }
+    };
+
+    const handleSaveDepartment = async (departmentData: any) => {
+        try {
+            if (departmentModal.mode === "create") {
+                const newDepartment = await securityService.createDepartment(departmentData);
+                setDepartments([...departments, newDepartment]);
+            } else if (departmentModal.mode === "edit" && departmentModal.department) {
+                const updatedDepartment = await securityService.updateDepartment(
+                    departmentModal.department.id,
+                    departmentData
+                );
+                setDepartments(departments.map((d) => (d.id === updatedDepartment.id ? updatedDepartment : d)));
+            }
+            setDepartmentModal({ isOpen: false, mode: "view", department: null });
+        } catch (error) {
+            console.error("Error saving department:", error);
+            throw error;
+        }
+    };
+
+    // Permission action handlers
+    const handleViewPermission = (permission: PermissionDetail) => {
+        setPermissionModal({
+            isOpen: true,
+            mode: "view",
+            permission,
+        });
+    };
+
+    const handleEditPermission = (permission: PermissionDetail) => {
+        setPermissionModal({
+            isOpen: true,
+            mode: "edit",
+            permission,
+        });
+    };
+
+    const handleCreatePermission = () => {
+        setPermissionModal({
+            isOpen: true,
+            mode: "create",
+            permission: null,
+        });
+    };
+
+    const handleDeletePermission = (permission: PermissionDetail) => {
+        setConfirmDialog({
+            isOpen: true,
+            title: "Delete Permission",
+            message: `Are you sure you want to delete permission "${permission.name}"? This action cannot be undone and may affect user access.`,
+            onConfirm: () => confirmDeletePermission(permission.id),
+            loading: false,
+        });
+    };
+
+    const confirmDeletePermission = async (permissionId: string) => {
+        setConfirmDialog((prev) => ({ ...prev, loading: true }));
+        try {
+            await securityService.deletePermission(permissionId);
+            setPermissions(permissions.filter((p) => p.id !== permissionId));
+            setConfirmDialog((prev) => ({ ...prev, isOpen: false, loading: false }));
+        } catch (error) {
+            console.error("Error deleting permission:", error);
+            setConfirmDialog((prev) => ({ ...prev, loading: false }));
+        }
+    };
+
+    const handleSavePermission = async (permissionData: any) => {
+        try {
+            if (permissionModal.mode === "create") {
+                const newPermission = await securityService.createPermission(permissionData);
+                setPermissions([...permissions, newPermission]);
+            } else if (permissionModal.mode === "edit" && permissionModal.permission) {
+                const updatedPermission = await securityService.updatePermission(
+                    permissionModal.permission.id,
+                    permissionData
+                );
+                setPermissions(permissions.map((p) => (p.id === updatedPermission.id ? updatedPermission : p)));
+            }
+            setPermissionModal({ isOpen: false, mode: "view", permission: null });
+        } catch (error) {
+            console.error("Error saving permission:", error);
             throw error;
         }
     };
@@ -516,7 +671,7 @@ const SecurityManagement: React.FC = () => {
                                                 key={index}
                                                 className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
                                             >
-                                                {permission.codename.replace("_", " ")}
+                                                {permission.name.replace("_", " ")}
                                             </span>
                                         ))}
                                         {role.permissions.length > 3 && (
@@ -567,9 +722,27 @@ const SecurityManagement: React.FC = () => {
     const renderDepartments = () => (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium text-gray-900">Department Management</h3>
+                <div className="flex items-center space-x-4">
+                    <div className="relative">
+                        <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Search departments..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        />
+                    </div>
+                    <button className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        <Filter className="h-4 w-4 mr-2" />
+                        Filter
+                    </button>
+                </div>
                 {hasPermission("add_department") && (
-                    <button className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                    <button
+                        onClick={handleCreateDepartment}
+                        className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
                         <Plus className="h-4 w-4 mr-2" />
                         Create Department
                     </button>
@@ -581,23 +754,96 @@ const SecurityManagement: React.FC = () => {
             ) : error ? (
                 <div className="text-red-600">{error}</div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {departments.map((department) => (
-                        <div key={department.id} className="bg-white border border-gray-200 rounded-lg p-6">
-                            <div className="flex items-start justify-between mb-4">
-                                <div>
-                                    <h4 className="text-lg font-medium text-gray-900">{department.name}</h4>
-                                    {/* <p className="text-sm text-gray-500">{department.members} members</p> */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {departments
+                        .filter(
+                            (department) =>
+                                department.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                department.description.toLowerCase().includes(searchTerm.toLowerCase())
+                        )
+                        .map((department) => (
+                            <div
+                                key={department.id}
+                                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-all duration-200 hover:border-purple-300"
+                            >
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="flex items-center">
+                                        <div className="p-2 bg-purple-100 rounded-lg mr-3">
+                                            <Building2 className="h-6 w-6 text-purple-600" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-lg font-medium text-gray-900">{department.name}</h4>
+                                            <p className="text-sm text-gray-500 flex items-center">
+                                                <Users className="h-4 w-4 mr-1" />
+                                                {department.roles?.length || 0} roles
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
-                                {(hasPermission("change_department") || hasPermission("delete_department")) && (
-                                    <button className="text-gray-400 hover:text-gray-600">
-                                        <MoreVertical className="h-5 w-5" />
-                                    </button>
-                                )}
+                                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{department.description}</p>
+
+                                {/* Assigned Roles */}
+                                <div className="space-y-2">
+                                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                        Assigned Roles
+                                    </p>
+                                    <div className="flex flex-wrap gap-1">
+                                        {department.roles && department.roles.length > 0 ? (
+                                            <>
+                                                {department.roles.slice(0, 2).map((role, index) => (
+                                                    <span
+                                                        key={index}
+                                                        className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full"
+                                                    >
+                                                        {role.name}
+                                                    </span>
+                                                ))}
+                                                {department.roles.length > 2 && (
+                                                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                                        +{department.roles.length - 2} more
+                                                    </span>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                                No roles assigned
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Action buttons */}
+                                <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end space-x-2">
+                                    {hasPermission("view_department") && (
+                                        <button
+                                            onClick={() => handleViewDepartment(department)}
+                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            title="View department"
+                                        >
+                                            <Eye className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                    {hasPermission("change_department") && (
+                                        <button
+                                            onClick={() => handleEditDepartment(department)}
+                                            className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                            title="Edit department"
+                                        >
+                                            <Edit className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                    {hasPermission("delete_department") && (
+                                        <button
+                                            onClick={() => handleDeleteDepartment(department)}
+                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Delete department"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                            <p className="text-sm text-gray-600 mb-4">{department.description}</p>
-                        </div>
-                    ))}
+                        ))}
                 </div>
             )}
         </div>
@@ -606,9 +852,27 @@ const SecurityManagement: React.FC = () => {
     const renderPermissions = () => (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium text-gray-900">Permission Management</h3>
+                <div className="flex items-center space-x-4">
+                    <div className="relative">
+                        <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Search permissions..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        />
+                    </div>
+                    <button className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        <Filter className="h-4 w-4 mr-2" />
+                        Filter
+                    </button>
+                </div>
                 {hasPermission("add_permission") && (
-                    <button className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
+                    <button
+                        onClick={handleCreatePermission}
+                        className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                    >
                         <Plus className="h-4 w-4 mr-2" />
                         Add Permission
                     </button>
@@ -642,39 +906,70 @@ const SecurityManagement: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {permissions.map((permission) => (
-                                <tr key={permission.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center">
-                                            <Lock className="h-4 w-4 text-gray-400 mr-2" />
-                                            <span className="text-sm font-medium text-gray-900">{permission.name}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {permission.module}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={getPermissionTypeBadge(permission.type)}>
-                                            {permission.type}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-gray-500">{permission.description}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <div className="flex items-center justify-end space-x-2">
-                                            {hasPermission("change_permission") && (
-                                                <button className="text-gray-600 hover:text-gray-900">
-                                                    <Edit className="h-4 w-4" />
-                                                </button>
-                                            )}
-                                            {hasPermission("delete_permission") && (
-                                                <button className="text-red-600 hover:text-red-900">
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                            {console.log(permissions)}
+                            {permissions
+                                // .filter(
+                                //     (permission) =>
+                                //         permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                //         permission.module.toLowerCase().includes(searchTerm.toLowerCase())
+                                // )
+                                .filter(
+                                    (permission) =>
+                                        permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                        permission.module.toLowerCase().includes(searchTerm.toLowerCase())
+                                )
+                                .map((permission) => (
+                                    <tr key={permission.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="flex items-center">
+                                                <Lock className="h-4 w-4 text-gray-400 mr-2" />
+                                                <span className="text-sm font-medium text-gray-900">
+                                                    {permission.name}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {permission.module}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={getPermissionTypeBadge(permission.type)}>
+                                                {permission.type}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-500">{permission.description}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <div className="flex items-center justify-end space-x-2">
+                                                {hasPermission("view_permission") && (
+                                                    <button
+                                                        onClick={() => handleViewPermission(permission)}
+                                                        className="text-blue-600 hover:text-blue-900"
+                                                        title="View permission"
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                                {hasPermission("change_permission") && (
+                                                    <button
+                                                        onClick={() => handleEditPermission(permission)}
+                                                        className="text-gray-600 hover:text-gray-900"
+                                                        title="Edit permission"
+                                                    >
+                                                        <Edit className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                                {hasPermission("delete_permission") && (
+                                                    <button
+                                                        onClick={() => handleDeletePermission(permission)}
+                                                        className="text-red-600 hover:text-red-900"
+                                                        title="Delete permission"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
                         </tbody>
                     </table>
                 </div>
@@ -765,6 +1060,23 @@ const SecurityManagement: React.FC = () => {
                 mode={roleModal.mode}
                 permissions={permissions}
                 onSave={handleSaveRole}
+            />
+
+            <DepartmentModal
+                isOpen={departmentModal.isOpen}
+                onClose={() => setDepartmentModal({ isOpen: false, mode: "view", department: null })}
+                department={departmentModal.department}
+                mode={departmentModal.mode}
+                roles={roles}
+                onSave={handleSaveDepartment}
+            />
+
+            <PermissionModal
+                isOpen={permissionModal.isOpen}
+                onClose={() => setPermissionModal({ isOpen: false, mode: "view", permission: null })}
+                permission={permissionModal.permission}
+                mode={permissionModal.mode}
+                onSave={handleSavePermission}
             />
 
             <ConfirmDialog

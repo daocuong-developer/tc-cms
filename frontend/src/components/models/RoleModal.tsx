@@ -71,7 +71,7 @@ const RoleModal: React.FC<RoleModalProps> = ({ isOpen, onClose, role, mode, perm
 
     const filteredPermissions = permissions.filter(
         (permission) =>
-            permission.codename.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             permission.module.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
