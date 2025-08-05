@@ -261,17 +261,27 @@ const DepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose, depa
                             type="submit"
                             disabled={loading}
                             onClick={handleSubmit}
-                            className="px-4 py-2 text-sm font-medium text-white bg-purple-600 border border-transparent rounded-lg hover:bg-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                            className="flex items-center px-4 py-2 text-sm font-medium text-white bg-purple-600 border border-transparent rounded-lg hover:bg-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             {loading ? (
                                 <>
                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                     Saving...
                                 </>
-                            ) : mode === "create" ? (
-                                "Create Department"
                             ) : (
-                                "Save Changes"
+                                <>
+                                    {mode === "create" ? (
+                                        <>
+                                            <Building2 className="h-4 w-4 mr-2" />
+                                            Create Department
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Building2 className="h-4 w-4 mr-2" />
+                                            Save Changes
+                                        </>
+                                    )}
+                                </>
                             )}
                         </button>
                     )}

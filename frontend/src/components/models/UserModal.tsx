@@ -124,6 +124,12 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
 
         setSaving(true);
         try {
+            const dataToSend = { ...formData };
+            if (mode === "edit" && !formData.password.trim()) {
+                delete dataToSend.password; 
+            }
+            await onSave(dataToSend);
+
             await onSave(formData);
             onClose();
         } catch (error) {
@@ -397,7 +403,6 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-600"
                                                 >
                                                     <option value="">Select Department</option>
-                                                    {console.log(departments)}
                                                     {departments.map((dept) => (
                                                         <option key={dept.id} value={dept.id}>
                                                             {dept.name}

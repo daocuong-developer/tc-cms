@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AuthContextType, LoginCredentials, RegisterData, User } from "../types/auth.types";
-import { authApi } from "../services/authApi";
+import { authApi } from "@services/authApi";
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -65,7 +65,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsLoading(false);
         }
     };
-
 
     const normalizePermission = (code: string): string => {
         return code.trim().toLowerCase().replace(/_?s$/, "");

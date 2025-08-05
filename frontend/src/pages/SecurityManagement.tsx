@@ -23,10 +23,10 @@ import DepartmentModal from "@components/models/DepartmentModal";
 import PermissionModal from "@components/models/PermissionModal";
 
 const SecurityManagement: React.FC = () => {
+    // const { user, hasPermission, isLoading: authLoading } = useAuth();
     const { user, hasPermission, isLoading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState<"users" | "roles" | "departments" | "permissions">("users");
     const [searchTerm, setSearchTerm] = useState("");
-
     const [users, setUsers] = useState<UserDetail[]>([]);
     const [roles, setRoles] = useState<RoleDetail[]>([]);
     const [departments, setDepartments] = useState<DepartmentDetail[]>([]);
@@ -91,33 +91,33 @@ const SecurityManagement: React.FC = () => {
     });
 
     const fetchAllData = useCallback(async () => {
-    setLoadingData(true);
-    setError(null);
-    try {
-        const promises = [];
+        setLoadingData(true);
+        setError(null);
+        try {
+            const promises = [];
 
-        if (hasPermission("view_user")) {
-            promises.push(securityService.getUsers().then(setUsers));
-        }
-        if (hasPermission("view_role")) {
-            promises.push(securityService.getRoles().then(setRoles));
-        }
-        if (hasPermission("view_department")) {
-            const canViewAllDepartments = hasPermission("view_all_departments");
-            promises.push(securityService.getDepartments(canViewAllDepartments).then(setDepartments));
-        }
-        if (hasPermission("view_permission")) {
-            promises.push(securityService.getPermissions().then(setPermissions));
-        }
+            if (hasPermission("view_user")) {
+                promises.push(securityService.getUsers().then(setUsers));
+            }
+            if (hasPermission("view_role")) {
+                promises.push(securityService.getRoles().then(setRoles));
+            }
+            if (hasPermission("view_department")) {
+                const canViewAllDepartments = hasPermission("view_all_departments");
+                promises.push(securityService.getDepartments(canViewAllDepartments).then(setDepartments));
+            }
+            if (hasPermission("view_permission")) {
+                promises.push(securityService.getPermissions().then(setPermissions));
+            }
 
-        await Promise.all(promises);
-    } catch (err) {
-        console.error("Failed to fetch all data:", err);
-        setError("Failed to load data. Please try again.");
-    } finally {
-        setLoadingData(false);
-    }
-}, [hasPermission]);
+            await Promise.all(promises);
+        } catch (err) {
+            console.error("Failed to fetch all data:", err);
+            setError("Failed to load data. Please try again.");
+        } finally {
+            setLoadingData(false);
+        }
+    }, [hasPermission]);
 
     useEffect(() => {
         if (!authLoading) {
