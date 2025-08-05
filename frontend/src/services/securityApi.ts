@@ -27,6 +27,14 @@ export interface RoleDetail {
     user_count: number;
 }
 
+export interface OrganizationDetail {
+    id: string;
+    name: string;
+    description: string;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface DepartmentDetail {
     id: string;
     name: string;
@@ -98,9 +106,20 @@ export const securityService = {
         await securityApi.delete(`/auth/roles/${id}/`);
     },
 
+    // Organization Manage
+    getOrganizations: async (): Promise<OrganizationDetail[]> => {
+        const response = await securityApi.get<OrganizationDetail[]>("/auth/organizations/");
+        return response.data;
+    },
+    
     // Departments Management
-    getDepartments: async (): Promise<DepartmentDetail[]> => {
-        const response = await securityApi.get<DepartmentDetail[]>("/auth/departments/");
+    getDepartments: async (includeAllOrganizations = false): Promise<DepartmentDetail[]> => {
+        let url = "/auth/departments/";
+        if (includeAllOrganizations) {
+            url = "/auth/departments/?all_organizations=true";
+        }
+        const response = await securityApi.get<DepartmentDetail[]>(url);
+        console.log(response.data);
         return response.data;
     },
     createDepartment: async (data: any): Promise<DepartmentDetail> => {
@@ -118,6 +137,7 @@ export const securityService = {
     // Permission Management
     getPermissions: async (): Promise<PermissionDetail[]> => {
         const response = await securityApi.get<PermissionDetail[]>("/auth/permissions/");
+
         return response.data;
     },
     createPermission: async (permissionData: any): Promise<PermissionDetail> => {
@@ -134,5 +154,3 @@ export const securityService = {
 };
 
 export default securityApi;
-
-

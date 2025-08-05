@@ -90,36 +90,40 @@ const SecurityManagement: React.FC = () => {
         permission: null,
     });
 
-    const fetchData = useCallback(async () => {
-        setLoadingData(true);
-        setError(null);
-        try {
-            if (activeTab === "users" && hasPermission("view_user")) {
-                const fetchedUsers = await securityService.getUsers();
-                setUsers(fetchedUsers);
-            } else if (activeTab === "roles" && hasPermission("view_role")) {
-                const fetchedRoles = await securityService.getRoles();
-                setRoles(fetchedRoles);
-            } else if (activeTab === "departments" && hasPermission("view_department")) {
-                const fetchedDepartments = await securityService.getDepartments();
-                setDepartments(fetchedDepartments);
-            } else if (activeTab === "permissions" && hasPermission("view_permission")) {
-                const fetchedPermissions = await securityService.getPermissions();
-                setPermissions(fetchedPermissions);
-            }
-        } catch (err) {
-            console.error("Failed to fetch data:", err);
-            setError("Failed to load data. Please try again.");
-        } finally {
-            setLoadingData(false);
+    const fetchAllData = useCallback(async () => {
+    setLoadingData(true);
+    setError(null);
+    try {
+        const promises = [];
+
+        if (hasPermission("view_user")) {
+            promises.push(securityService.getUsers().then(setUsers));
         }
-    }, [activeTab, hasPermission]);
+        if (hasPermission("view_role")) {
+            promises.push(securityService.getRoles().then(setRoles));
+        }
+        if (hasPermission("view_department")) {
+            const canViewAllDepartments = hasPermission("view_all_departments");
+            promises.push(securityService.getDepartments(canViewAllDepartments).then(setDepartments));
+        }
+        if (hasPermission("view_permission")) {
+            promises.push(securityService.getPermissions().then(setPermissions));
+        }
+
+        await Promise.all(promises);
+    } catch (err) {
+        console.error("Failed to fetch all data:", err);
+        setError("Failed to load data. Please try again.");
+    } finally {
+        setLoadingData(false);
+    }
+}, [hasPermission]);
 
     useEffect(() => {
         if (!authLoading) {
-            fetchData();
+            fetchAllData();
         }
-    }, [activeTab, authLoading, fetchData]);
+    }, [authLoading, fetchAllData]);
 
     // Derived counts for tabs
     const tabCounts = {
@@ -286,6 +290,7 @@ const SecurityManagement: React.FC = () => {
     };
 
     const handleEditDepartment = (department: DepartmentDetail) => {
+        console.log("Editing department:", department);
         setDepartmentModal({
             isOpen: true,
             mode: "edit",
@@ -906,13 +911,7 @@ const SecurityManagement: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {console.log(permissions)}
                             {permissions
-                                // .filter(
-                                //     (permission) =>
-                                //         permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                //         permission.module.toLowerCase().includes(searchTerm.toLowerCase())
-                                // )
                                 .filter(
                                     (permission) =>
                                         permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
