@@ -21,3 +21,11 @@ class HasPermission(permissions.BasePermission):
 
     def has_permission(self, request, view):
         return request.user.roles.filter(permissions__codename=self.codename).exists()
+    
+class IsSelfOrAdmin(permissions.BasePermission):
+    """
+    Cho phép nếu là superuser hoặc là chính user đang thao tác.
+    Dùng để thay thế đoạn gọi self.get_object() trong get_permissions().
+    """
+    def has_object_permission(self, request, view, obj):
+        return request.user.is_superuser or obj == request.user

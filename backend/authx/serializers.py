@@ -24,7 +24,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
 class PermissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Permission
-        fields = ['id', 'name', 'module', 'description', 'type']
+        fields = ['id', 'name', 'module', 'description', 'type', 'codename']
 
 class RoleSimpleSerializer(serializers.ModelSerializer):
     class Meta:
@@ -89,21 +89,47 @@ class UserSerializer(serializers.ModelSerializer):
         user.roles.set(roles_data)
         return user
 
+    # def update(self, instance, validated_data):
+    #     roles_data = validated_data.pop('roles', None)
+    #     password = validated_data.pop('password', None)
+
+    #     for attr, value in validated_data.items():
+    #         setattr(instance, attr, value)
+
+    #     if password is not None:
+    #         instance.set_password(password)
+
+    #     instance.save()
+
+    #     if roles_data is not None:
+    #         instance.roles.set(roles_data)
+    #     return instance
+
     def update(self, instance, validated_data):
         roles_data = validated_data.pop('roles', None)
         password = validated_data.pop('password', None)
 
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
+        instance.email = validated_data.get('email', instance.email)
+        instance.full_name = validated_data.get('full_name', instance.full_name)
+        instance.username = validated_data.get('username', instance.username)
+        instance.is_staff = validated_data.get('is_staff', instance.is_staff)
+        instance.is_superuser = validated_data.get('is_superuser', instance.is_superuser)
 
-        if password is not None:
+        if 'department' in validated_data:
+            instance.department = validated_data['department']
+        if 'organization' in validated_data:
+            instance.organization = validated_data['organization']
+
+        if password:
             instance.set_password(password)
 
         instance.save()
 
         if roles_data is not None:
             instance.roles.set(roles_data)
+
         return instance
+
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
