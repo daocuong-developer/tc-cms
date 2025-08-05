@@ -84,6 +84,39 @@ class User(AbstractUser):
                 permissions.add(perm.codename)
         return list(permissions) 
     
+    def has_perm(self, perm, obj=None):
+        """
+        Kiểm tra xem người dùng có quyền cụ thể hay không,
+        bao gồm cả quyền từ các vai trò tùy chỉnh.
+        """
+        # Nếu là superuser, luôn có tất cả quyền
+        if self.is_superuser:
+            return True
+            
+        # Tách quyền ra thành app_label và codename
+        try:
+            app_label, codename = perm.split('.')
+        except ValueError:
+            return False
+
+        # Lấy tất cả các codename quyền từ các vai trò của người dùng
+        user_permissions_codenames = self.get_all_permissions_codename()
+        
+        # Kiểm tra xem codename quyền đó có trong danh sách không
+        return codename in user_permissions_codenames
+
+    # Thêm hàm này để tích hợp với các hệ thống permission mặc định của Django
+    def has_perms(self, perm_list, obj=None):
+        return all(self.has_perm(perm, obj) for perm in perm_list)
+
+    # Hàm bạn đã viết để lấy tất cả các codename quyền từ các vai trò của họ
+    def get_all_permissions_codename(self):
+        permissions = set() 
+        for role in self.roles.all():
+            for perm in role.permissions.all():
+                permissions.add(perm.codename)
+        return list(permissions)
+    
 # --- Existing Permission Model ---
 class Permission(models.Model):
     # Old fields

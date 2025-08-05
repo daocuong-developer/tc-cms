@@ -1,12 +1,11 @@
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import api_view, permission_classes, action
-from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated,AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import get_user_model
-
 from .serializers import (
     RegisterSerializer, LoginSerializer, UserSerializer,
     OrganizationSerializer, DepartmentSerializer,
@@ -116,17 +115,20 @@ class DepartmentViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsAdminUser()]
+            return [IsAdminUser()] 
         return [IsAuthenticated()]
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_superuser:
+    
+        if user.has_perm('authx.view_all_departments') or user.is_superuser:
             return Department.objects.all().order_by('organization__name', 'name')
+        
         if user.organization:
             return Department.objects.filter(organization=user.organization).order_by('name')
-        return Department.objects.none() 
-
+            
+        return Department.objects.none()
+    
 # Existing logout view
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
