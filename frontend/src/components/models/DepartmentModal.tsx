@@ -18,7 +18,6 @@ const DepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose, depa
         roles: [] as string[],
         organizationId: "",
     });
-
     const [organizations, setOrganizations] = useState<OrganizationDetail[]>([]);
     const [loading, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -59,11 +58,6 @@ const DepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose, depa
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (mode === "view") return;
-
-        if (!formData.organizationId) {
-            setError("Please select an organization.");
-            return;
-        }
 
         setSaving(true);
         setError(null);
@@ -127,7 +121,7 @@ const DepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose, depa
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto max-h-[calc(90vh-200px)]">
                     <form onSubmit={handleSubmit} className="p-6 space-y-6">
                         {error && (
                             <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
@@ -154,12 +148,7 @@ const DepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose, depa
                                     <input
                                         type="text"
                                         value={formData.name}
-                                        onChange={(e) =>
-                                            setFormData((prev) => ({
-                                                ...prev,
-                                                name: e.target.value,
-                                            }))
-                                        }
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                                         disabled={mode === "view"}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                                         placeholder="Enter department name"
@@ -172,10 +161,7 @@ const DepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose, depa
                                     <textarea
                                         value={formData.description}
                                         onChange={(e) =>
-                                            setFormData((prev) => ({
-                                                ...prev,
-                                                description: e.target.value,
-                                            }))
+                                            setFormData((prev) => ({ ...prev, description: e.target.value }))
                                         }
                                         disabled={mode === "view"}
                                         rows={3}
@@ -228,8 +214,8 @@ const DepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose, depa
                                         {roles.map((role) => (
                                             <label
                                                 key={role.id}
-                                                className={`flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors ${
-                                                    mode === "view" ? "cursor-default" : "cursor-pointer"
+                                                className={`flex items-center p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors ${
+                                                    mode === "view" ? "cursor-default" : ""
                                                 }`}
                                             >
                                                 <input
@@ -262,7 +248,7 @@ const DepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose, depa
                 </div>
 
                 {/* Footer */}
-                <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end space-x-3">
+                <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end space-x-3 flex-shrink-0">
                     <button
                         type="button"
                         onClick={onClose}

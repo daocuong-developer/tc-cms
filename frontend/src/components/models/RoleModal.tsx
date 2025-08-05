@@ -72,6 +72,7 @@ const RoleModal: React.FC<RoleModalProps> = ({ isOpen, onClose, role, mode, perm
     const filteredPermissions = permissions.filter(
         (permission) =>
             permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            permission.codename.toLowerCase().includes(searchTerm.toLowerCase()) ||
             permission.module.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -136,7 +137,7 @@ const RoleModal: React.FC<RoleModalProps> = ({ isOpen, onClose, role, mode, perm
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto max-h-[calc(90vh-200px)]">
                     <form onSubmit={handleSubmit} className="p-6 space-y-6">
                         {error && (
                             <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
@@ -267,7 +268,7 @@ const RoleModal: React.FC<RoleModalProps> = ({ isOpen, onClose, role, mode, perm
                 </div>
 
                 {/* Footer */}
-                <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end space-x-3">
+                <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end space-x-3 flex-shrink-0">
                     <button
                         type="button"
                         onClick={onClose}
