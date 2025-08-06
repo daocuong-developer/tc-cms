@@ -9,12 +9,12 @@ import {
     Eye,
     EyeOff,
     Phone,
-    Calendar,
     MapPin,
     Briefcase,
     Clock,
     CheckCircle,
     XCircle,
+    AlertCircle,
 } from "lucide-react";
 import { UserDetail, RoleDetail, DepartmentDetail, OrganizationDetail, securityService } from "@services/securityApi";
 
@@ -32,12 +32,14 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
     const [organizations, setOrganizations] = useState<OrganizationDetail[]>([]);
     const [filteredDepartments, setFilteredDepartments] = useState<DepartmentDetail[]>([]);
     const [loadingDepartments, setLoadingDepartments] = useState(false);
+    const [loadingOrganizations, setLoadingOrganizations] = useState(false);
     const [formData, setFormData] = useState({
         username: "",
         email: "",
         full_name: "",
         password: "",
         phone: "",
+        position: "",
         organization_id: "",
         address: "",
         role_ids: [] as string[],
@@ -52,11 +54,14 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
     // Load organizations on component mount
     useEffect(() => {
         const loadOrganizations = async () => {
+            setLoadingOrganizations(true);
             try {
                 const orgs = await securityService.getOrganizations();
                 setOrganizations(orgs);
             } catch (error) {
                 console.error("Error loading organizations:", error);
+            } finally {
+                setLoadingOrganizations(false);
             }
         };
 
@@ -69,11 +74,12 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
     useEffect(() => {
         setLoadingDepartments(true);
         if (formData.organization_id) {
-            // Load departments for the selected organization
             const loadDepartmentsForOrg = async () => {
                 try {
-                    const allDepartments = await securityService.getDepartments(true);
-                    const filtered = allDepartments.filter((dept) => dept.organization_id === formData.organization_id);
+                    // Use the departments prop which should already be loaded
+                    const filtered = departments.filter(
+                        (dept) => dept.organization?.id === Number(formData.organization_id)
+                    );
                     setFilteredDepartments(filtered);
                 } catch (error) {
                     console.error("Error loading departments for organization:", error);
@@ -82,22 +88,21 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                 setLoadingDepartments(false);
             };
             loadDepartmentsForOrg();
-
-            // Reset department selection if current department doesn't belong to selected organization
-            if (formData.department_id) {
-                // We'll validate this after loading departments
-                setTimeout(() => {
-                    const currentDeptValid = filteredDepartments.find((dept) => dept.id === formData.department_id);
-                    if (!currentDeptValid) {
-                        setFormData((prev) => ({ ...prev, department_id: "" }));
-                    }
-                }, 100);
-            }
         } else {
             setFilteredDepartments([]);
             setLoadingDepartments(false);
         }
-    }, [formData.organization_id]);
+    }, [formData.organization_id, departments]);
+
+    // Reset department selection if current department doesn't belong to selected organization
+    useEffect(() => {
+        if (formData.department_id && filteredDepartments.length > 0) {
+            const currentDeptValid = filteredDepartments.find((dept) => dept.id === formData.department_id);
+            if (!currentDeptValid) {
+                setFormData((prev) => ({ ...prev, department_id: "" }));
+            }
+        }
+    }, [filteredDepartments, formData.department_id]);
 
     useEffect(() => {
         if (user && (mode === "view" || mode === "edit")) {
@@ -107,6 +112,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                 full_name: user.full_name || "",
                 password: "",
                 phone: user.phone || "",
+                position: user.position || "",
                 organization_id: user.organization?.id || "",
                 address: user.address || "",
                 role_ids: user.roles?.map((r) => r.id) || [],
@@ -121,6 +127,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                 full_name: "",
                 password: "",
                 phone: "",
+                position: "",
                 organization_id: "",
                 address: "",
                 role_ids: [],
@@ -161,6 +168,14 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
             newErrors.phone = "Please enter a valid phone number";
         }
 
+        if (!formData.organization_id) {
+            newErrors.organization_id = "Please select an organization";
+        }
+
+        if (!formData.department_id) {
+            newErrors.department_id = "Please select a department";
+        }
+
         if (formData.role_ids.length === 0) {
             newErrors.role_ids = "Please select at least one role";
         }
@@ -181,7 +196,6 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
             if (mode === "edit" && !formData.password.trim()) {
                 delete dataToSend.password;
             }
-            await onSave(dataToSend);
 
             await onSave(formData);
             onClose();
@@ -318,6 +332,25 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                     {/* Main Content */}
                     <div className="flex-1 overflow-y-auto">
                         <form onSubmit={handleSubmit} className="p-6">
+                            {/* Error Display */}
+                            {Object.keys(errors).length > 0 && (
+                                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                                    <div className="flex items-start">
+                                        <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 mr-2 flex-shrink-0" />
+                                        <div>
+                                            <h4 className="text-sm font-medium text-red-800 mb-2">
+                                                Please fix the following errors:
+                                            </h4>
+                                            <ul className="text-sm text-red-700 space-y-1">
+                                                {Object.entries(errors).map(([field, error]) => (
+                                                    <li key={field}>• {error}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 {/* Basic Information */}
                                 <div className="lg:col-span-2">
@@ -412,6 +445,23 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                                     <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
                                                 )}
                                             </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    <Briefcase className="h-4 w-4 inline mr-1" />
+                                                    Position
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.position}
+                                                    onChange={(e) =>
+                                                        setFormData({ ...formData, position: e.target.value })
+                                                    }
+                                                    disabled={isReadOnly}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-600"
+                                                    placeholder="Enter job position"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -444,8 +494,10 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                                             : "border-gray-200 hover:border-blue-300"
                                                     }`}
                                                 >
-                                                    <option value="" className="text-gray-500">
-                                                        Choose an organization...
+                                                    <option value="">
+                                                        {loadingOrganizations
+                                                            ? "Loading organizations..."
+                                                            : "Choose an organization..."}
                                                     </option>
                                                     {organizations.map((org) => (
                                                         <option key={org.id} value={org.id}>
@@ -502,14 +554,15 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                                         {errors.department_id}
                                                     </p>
                                                 )}
-                                                {formData.organization_id && filteredDepartments.length === 0 && (
-                                                    <p className="mt-2 text-sm text-amber-600 flex items-center bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
-                                                        <Clock className="h-4 w-4 mr-2" />
-                                                        {loadingDepartments
-                                                            ? "Loading departments..."
-                                                            : "No departments found for this organization"}
-                                                    </p>
-                                                )}
+                                                {formData.organization_id &&
+                                                    filteredDepartments.length === 0 &&
+                                                    !loadingDepartments && (
+                                                        <p className="mt-2 text-sm text-blue-600 flex items-center bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+                                                            <AlertCircle className="h-4 w-4 mr-2" />
+                                                            No departments available for this organization. Please
+                                                            create a department first.
+                                                        </p>
+                                                    )}
                                             </div>
 
                                             <div className="md:col-span-2">
@@ -565,11 +618,11 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                                             <p className="text-xs text-blue-700 flex items-center">
                                                                 <Shield className="h-3 w-3 mr-1" />
                                                                 Hold{" "}
-                                                                <kbd className="px-1 py-0.5 bg-blue-200 rounded text-xs">
+                                                                <kbd className="px-1 py-0.5 bg-blue-200 rounded text-xs mx-1">
                                                                     Ctrl
                                                                 </kbd>{" "}
                                                                 (Windows) or{" "}
-                                                                <kbd className="px-1 py-0.5 bg-blue-200 rounded text-xs">
+                                                                <kbd className="px-1 py-0.5 bg-blue-200 rounded text-xs mx-1">
                                                                     Cmd
                                                                 </kbd>{" "}
                                                                 (Mac) to select multiple roles
@@ -647,6 +700,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                                                     is_active: e.target.checked,
                                                                 })
                                                             }
+                                                            disabled={isReadOnly}
                                                             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                                         />
                                                         <label
@@ -707,12 +761,13 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                             </div>
 
                             {/* Footer */}
-                            <div className="flex justify-end space-x-3 pt-6 mt-6 border-t border-gray-200">
+                            <div className="flex justify-end space-x-3 pt-6 mt-6 border-t border-gray-200 bg-gray-50 -mx-6 px-6 -mb-6 pb-6">
                                 <button
                                     type="button"
                                     onClick={onClose}
-                                    className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                                    className="flex items-center px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                                 >
+                                    <X className="h-4 w-4 mr-2" />
                                     {mode === "view" ? "Close" : "Cancel"}
                                 </button>
                                 {mode !== "view" && (
@@ -721,8 +776,17 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                         disabled={loading}
                                         className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-colors"
                                     >
-                                        <Save className="h-4 w-4 mr-2" />
-                                        {loading ? "Saving..." : mode === "create" ? "Create User" : "Save Changes"}
+                                        {loading ? (
+                                            <>
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                                Saving...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save className="h-4 w-4 mr-2" />
+                                                {mode === "create" ? "Create User" : "Save Changes"}
+                                            </>
+                                        )}
                                     </button>
                                 )}
                             </div>

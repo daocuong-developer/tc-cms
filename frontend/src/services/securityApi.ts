@@ -111,7 +111,7 @@ export const securityService = {
         const response = await securityApi.get<OrganizationDetail[]>("/auth/organizations/");
         return response.data;
     },
-    
+
     // Departments Management
     getDepartments: async (includeAllOrganizations = false): Promise<DepartmentDetail[]> => {
         let url = "/auth/departments/";
@@ -119,7 +119,6 @@ export const securityService = {
             url = "/auth/departments/?all_organizations=true";
         }
         const response = await securityApi.get<DepartmentDetail[]>(url);
-        console.log(response.data);
         return response.data;
     },
     createDepartment: async (data: any): Promise<DepartmentDetail> => {

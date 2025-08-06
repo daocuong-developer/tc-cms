@@ -428,6 +428,7 @@ const SecurityManagement: React.FC = () => {
         if (!dateString) return "Never";
         const date = new Date(dateString);
         return date.toLocaleString("en-US", {
+            timeZone: "Asia/Ho_Chi_Minh",
             year: "numeric",
             month: "short",
             day: "numeric",
@@ -538,6 +539,7 @@ const SecurityManagement: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
+                            {console.log(users)}
                             {users
                                 .filter(
                                     (user) =>
