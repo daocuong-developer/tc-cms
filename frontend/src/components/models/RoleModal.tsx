@@ -268,35 +268,6 @@ const RoleModal: React.FC<RoleModalProps> = ({ isOpen, onClose, role, mode, perm
                     </form>
                 </div>
 
-                {/* Footer */}
-                {/* <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end space-x-3 flex-shrink-0">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                    >
-                        {mode === "view" ? "Close" : "Cancel"}
-                    </button>
-                    {mode !== "view" && (
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            onClick={handleSubmit}
-                            className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                        >
-                            {loading ? (
-                                <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                    Saving...
-                                </>
-                            ) : mode === "create" ? (
-                                "Create Role"
-                            ) : (
-                                "Save Changes"
-                            )}
-                        </button>
-                    )}
-                </div> */}
                 <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end space-x-3 flex-shrink-0">
                     <button
                         type="button"

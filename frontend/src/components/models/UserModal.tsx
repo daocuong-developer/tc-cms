@@ -16,7 +16,7 @@ import {
     CheckCircle,
     XCircle,
 } from "lucide-react";
-import { UserDetail, RoleDetail, DepartmentDetail } from "@services/securityApi";
+import { UserDetail, RoleDetail, DepartmentDetail, OrganizationDetail, securityService } from "@services/securityApi";
 
 interface UserModalProps {
     isOpen: boolean;
@@ -29,13 +29,16 @@ interface UserModalProps {
 }
 
 const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, roles, departments, onSave }) => {
+    const [organizations, setOrganizations] = useState<OrganizationDetail[]>([]);
+    const [filteredDepartments, setFilteredDepartments] = useState<DepartmentDetail[]>([]);
+    const [loadingDepartments, setLoadingDepartments] = useState(false);
     const [formData, setFormData] = useState({
         username: "",
         email: "",
         full_name: "",
         password: "",
         phone: "",
-        position: "",
+        organization_id: "",
         address: "",
         role_ids: [] as string[],
         department_id: "",
@@ -46,6 +49,56 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
     const [loading, setSaving] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
+    // Load organizations on component mount
+    useEffect(() => {
+        const loadOrganizations = async () => {
+            try {
+                const orgs = await securityService.getOrganizations();
+                setOrganizations(orgs);
+            } catch (error) {
+                console.error("Error loading organizations:", error);
+            }
+        };
+
+        if (isOpen) {
+            loadOrganizations();
+        }
+    }, [isOpen]);
+
+    // Filter departments based on selected organization
+    useEffect(() => {
+        setLoadingDepartments(true);
+        if (formData.organization_id) {
+            // Load departments for the selected organization
+            const loadDepartmentsForOrg = async () => {
+                try {
+                    const allDepartments = await securityService.getDepartments(true);
+                    const filtered = allDepartments.filter((dept) => dept.organization_id === formData.organization_id);
+                    setFilteredDepartments(filtered);
+                } catch (error) {
+                    console.error("Error loading departments for organization:", error);
+                    setFilteredDepartments([]);
+                }
+                setLoadingDepartments(false);
+            };
+            loadDepartmentsForOrg();
+
+            // Reset department selection if current department doesn't belong to selected organization
+            if (formData.department_id) {
+                // We'll validate this after loading departments
+                setTimeout(() => {
+                    const currentDeptValid = filteredDepartments.find((dept) => dept.id === formData.department_id);
+                    if (!currentDeptValid) {
+                        setFormData((prev) => ({ ...prev, department_id: "" }));
+                    }
+                }, 100);
+            }
+        } else {
+            setFilteredDepartments([]);
+            setLoadingDepartments(false);
+        }
+    }, [formData.organization_id]);
+
     useEffect(() => {
         if (user && (mode === "view" || mode === "edit")) {
             setFormData({
@@ -54,7 +107,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                 full_name: user.full_name || "",
                 password: "",
                 phone: user.phone || "",
-                position: user.position || "",
+                organization_id: user.organization?.id || "",
                 address: user.address || "",
                 role_ids: user.roles?.map((r) => r.id) || [],
                 department_id: user.department?.id || "",
@@ -68,7 +121,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                 full_name: "",
                 password: "",
                 phone: "",
-                position: "",
+                organization_id: "",
                 address: "",
                 role_ids: [],
                 department_id: "",
@@ -126,7 +179,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
         try {
             const dataToSend = { ...formData };
             if (mode === "edit" && !formData.password.trim()) {
-                delete dataToSend.password; 
+                delete dataToSend.password;
             }
             await onSave(dataToSend);
 
@@ -369,66 +422,122 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                         <Briefcase className="h-5 w-5 mr-2 text-gray-400" />
                                         Professional Information
                                     </h3>
-                                    <div className="bg-gray-50 rounded-lg p-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                    Position/Title
+                                                <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                                                    <div className="w-6 h-6 bg-blue-500 rounded-lg flex items-center justify-center mr-2">
+                                                        <Building className="h-4 w-4 text-white" />
+                                                    </div>
+                                                    Organization
+                                                    <span className="text-red-500 ml-1">*</span>
                                                 </label>
-
-                                                <input
-                                                    type="text"
-                                                    value={formData.position}
+                                                <select
+                                                    value={formData.organization_id}
                                                     onChange={(e) =>
-                                                        setFormData({ ...formData, position: e.target.value })
+                                                        setFormData({ ...formData, organization_id: e.target.value })
                                                     }
                                                     disabled={isReadOnly}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-600"
-                                                    placeholder="Enter job position"
-                                                />
+                                                    className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-200 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-600 transition-all duration-200 bg-white shadow-sm ${
+                                                        errors.organization_id
+                                                            ? "border-red-300 focus:border-red-500 focus:ring-red-200"
+                                                            : "border-gray-200 hover:border-blue-300"
+                                                    }`}
+                                                >
+                                                    <option value="" className="text-gray-500">
+                                                        Choose an organization...
+                                                    </option>
+                                                    {organizations.map((org) => (
+                                                        <option key={org.id} value={org.id}>
+                                                            {org.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {errors.organization_id && (
+                                                    <p className="mt-2 text-sm text-red-600 flex items-center">
+                                                        <XCircle className="h-4 w-4 mr-1" />
+                                                        {errors.organization_id}
+                                                    </p>
+                                                )}
                                             </div>
 
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                    <Building className="h-4 w-4 inline mr-1" />
-                                                    Department *
+                                                <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                                                    <div className="w-6 h-6 bg-green-500 rounded-lg flex items-center justify-center mr-2">
+                                                        <Building className="h-4 w-4 text-white" />
+                                                    </div>
+                                                    Department
+                                                    <span className="text-red-500 ml-1">*</span>
                                                 </label>
-
                                                 <select
                                                     value={formData.department_id}
                                                     onChange={(e) =>
                                                         setFormData({ ...formData, department_id: e.target.value })
                                                     }
-                                                    disabled={isReadOnly}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-600"
+                                                    disabled={
+                                                        isReadOnly || !formData.organization_id || loadingDepartments
+                                                    }
+                                                    className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-green-200 focus:border-green-500 disabled:bg-gray-100 disabled:text-gray-600 transition-all duration-200 bg-white shadow-sm ${
+                                                        errors.department_id
+                                                            ? "border-red-300 focus:border-red-500 focus:ring-red-200"
+                                                            : "border-gray-200 hover:border-green-300"
+                                                    }`}
                                                 >
-                                                    <option value="">Select Department</option>
-                                                    {departments.map((dept) => (
+                                                    <option value="">
+                                                        {loadingDepartments
+                                                            ? "Loading departments..."
+                                                            : formData.organization_id
+                                                            ? "Choose a department..."
+                                                            : "Select organization first"}
+                                                    </option>
+                                                    {filteredDepartments.map((dept) => (
                                                         <option key={dept.id} value={dept.id}>
                                                             {dept.name}
                                                         </option>
                                                     ))}
                                                 </select>
+                                                {errors.department_id && (
+                                                    <p className="mt-2 text-sm text-red-600 flex items-center">
+                                                        <XCircle className="h-4 w-4 mr-1" />
+                                                        {errors.department_id}
+                                                    </p>
+                                                )}
+                                                {formData.organization_id && filteredDepartments.length === 0 && (
+                                                    <p className="mt-2 text-sm text-amber-600 flex items-center bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+                                                        <Clock className="h-4 w-4 mr-2" />
+                                                        {loadingDepartments
+                                                            ? "Loading departments..."
+                                                            : "No departments found for this organization"}
+                                                    </p>
+                                                )}
                                             </div>
 
                                             <div className="md:col-span-2">
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                    <Shield className="h-4 w-4 inline mr-1" />
-                                                    Roles *
+                                                <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                                                    <div className="w-6 h-6 bg-purple-500 rounded-lg flex items-center justify-center mr-2">
+                                                        <Shield className="h-4 w-4 text-white" />
+                                                    </div>
+                                                    Roles & Permissions
+                                                    <span className="text-red-500 ml-1">*</span>
                                                 </label>
                                                 {isReadOnly ? (
-                                                    <div className="flex flex-wrap gap-2">
+                                                    <div className="flex flex-wrap gap-3">
                                                         {user?.roles?.map((role) => (
                                                             <span
                                                                 key={role.id}
-                                                                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                                                                className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border border-purple-300 shadow-sm"
                                                             >
+                                                                <Shield className="h-3 w-3 mr-1" />
                                                                 {role.name}
                                                             </span>
-                                                        )) || <span className="text-gray-500">No roles assigned</span>}
+                                                        )) || (
+                                                            <span className="text-gray-500 italic bg-gray-100 px-4 py-2 rounded-lg">
+                                                                No roles assigned
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 ) : (
-                                                    <>
+                                                    <div className="space-y-3">
                                                         <select
                                                             multiple
                                                             value={formData.role_ids}
@@ -439,26 +548,41 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                                                 );
                                                                 setFormData({ ...formData, role_ids: values });
                                                             }}
-                                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                                                                errors.role_ids ? "border-red-300" : "border-gray-300"
+                                                            className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-500 transition-all duration-200 bg-white shadow-sm ${
+                                                                errors.role_ids
+                                                                    ? "border-red-300 focus:border-red-500 focus:ring-red-200"
+                                                                    : "border-gray-200 hover:border-purple-300"
                                                             }`}
-                                                            size={4}
+                                                            size={Math.min(roles.length, 5)}
                                                         >
                                                             {roles.map((role) => (
                                                                 <option key={role.id} value={role.id}>
-                                                                    {role.name} ({role.user_count} users)
+                                                                    🛡️ {role.name} ({role.user_count} users)
                                                                 </option>
                                                             ))}
                                                         </select>
-                                                        <p className="text-xs text-gray-500 mt-1">
-                                                            Hold Ctrl/Cmd to select multiple roles
-                                                        </p>
+                                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                                            <p className="text-xs text-blue-700 flex items-center">
+                                                                <Shield className="h-3 w-3 mr-1" />
+                                                                Hold{" "}
+                                                                <kbd className="px-1 py-0.5 bg-blue-200 rounded text-xs">
+                                                                    Ctrl
+                                                                </kbd>{" "}
+                                                                (Windows) or{" "}
+                                                                <kbd className="px-1 py-0.5 bg-blue-200 rounded text-xs">
+                                                                    Cmd
+                                                                </kbd>{" "}
+                                                                (Mac) to select multiple roles
+                                                            </p>
+                                                        </div>
+
                                                         {errors.role_ids && (
-                                                            <p className="mt-1 text-sm text-red-600">
+                                                            <p className="text-sm text-red-600 flex items-center">
+                                                                <XCircle className="h-4 w-4 mr-1" />
                                                                 {errors.role_ids}
                                                             </p>
                                                         )}
-                                                    </>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
