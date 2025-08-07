@@ -16,7 +16,14 @@ import {
     Crown,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { securityService, UserDetail, RoleDetail, PermissionDetail, DepartmentDetail } from "../services/securityApi";
+import {
+    securityService,
+    UserDetail,
+    RoleDetail,
+    GroupDetail,
+    PermissionDetail,
+    DepartmentDetail,
+} from "../services/securityApi";
 import UserModal from "@components/models/UserModal";
 import ConfirmDialog from "@components/models/ConfirmDialog";
 import RoleModal from "@components/models/RoleModal";
@@ -539,7 +546,6 @@ const SecurityManagement: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {console.log(users)}
                             {users
                                 .filter(
                                     (user) =>

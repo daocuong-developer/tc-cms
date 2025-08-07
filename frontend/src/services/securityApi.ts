@@ -35,6 +35,14 @@ export interface OrganizationDetail {
     updated_at: string;
 }
 
+export interface GroupDetail {
+    id: string;
+    name: string;
+    description: string;
+    members: number;
+    roles: string[];
+}
+
 export interface DepartmentDetail {
     id: string;
     name: string;
@@ -111,6 +119,12 @@ export const securityService = {
         const response = await securityApi.get<OrganizationDetail[]>("/auth/organizations/");
         return response.data;
     },
+
+    // Group Management
+    // getGroups: async (): Promise<GroupDetail[]> => {
+    //     const response = await securityApi.get<GroupDetail[]>("auth/groups/");
+    //     return response.data;
+    // },
 
     // Departments Management
     getDepartments: async (includeAllOrganizations = false): Promise<DepartmentDetail[]> => {

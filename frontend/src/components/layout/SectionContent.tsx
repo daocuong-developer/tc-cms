@@ -10,13 +10,13 @@ import CrossModuleRequirements from "../../pages/CrossModuleRequirements";
 import TechnicalConsiderations from "../../pages/TechnicalConsiderations";
 import { RolesList } from "../roles/RolesList";
 import SecurityManagement from "@/pages/SecurityManagement";
+import OrganizationManagement from "@/pages/OrganizationManagement";
 
 interface SectionContentProps {
     activeSection: string;
 }
 
 const SectionContent: React.FC<SectionContentProps> = ({ activeSection }) => {
-  
     switch (activeSection) {
         case "executive":
             return <ExecutiveSummary />;
@@ -36,11 +36,12 @@ const SectionContent: React.FC<SectionContentProps> = ({ activeSection }) => {
             return <CrossModuleRequirements />;
         case "technical":
             return <TechnicalConsiderations />;
-        // case 'role-list': return <RoleList />;
         case "role-list":
             return <RolesList />;
         case "security-management":
             return <SecurityManagement />;
+        case "organizations":
+            return <OrganizationManagement />;
         default:
             return <ExecutiveSummary />;
     }

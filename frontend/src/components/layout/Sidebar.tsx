@@ -13,6 +13,7 @@ import {
     Database,
     Activity,
     List,
+    Building,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -39,6 +40,7 @@ const adminSections = [
     { id: "role-list", title: "Role List", icon: List },
     { id: "security", title: "Security & Compliance", icon: Shield },
     { id: "monitoring", title: "System Monitoring", icon: Activity },
+    { id: "organizations", title: "Organizations", icon: Building },
     { id: "security-management", title: "Security Management", icon: Users, path: "/admin/security-management" },
 ];
 
@@ -54,7 +56,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             collapsed ? "w-16" : "w-64"
         } flex flex-col fixed h-full z-10`}
     >
-      
         <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
                 {!collapsed && (
@@ -106,7 +107,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                             Administration
                         </div>
-                        
                     )}
                     {adminSections.map((section) => {
                         const Icon = section.icon;
