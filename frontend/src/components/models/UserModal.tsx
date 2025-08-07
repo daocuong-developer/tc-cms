@@ -24,7 +24,7 @@ interface UserModalProps {
     user?: UserDetail | null;
     mode: "view" | "edit" | "create";
     roles: RoleDetail[];
-    departments: DepartmentDetail[];
+    departments?: DepartmentDetail[];
     onSave: (userData: any) => Promise<void>;
 }
 

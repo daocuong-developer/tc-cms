@@ -3,7 +3,7 @@ export interface User {
     email: string;
     full_name: string;
     roles: Role[];
-    permissions?: string[]; // Add
+    permissions?: string[]; 
 }
 
 export interface Role {

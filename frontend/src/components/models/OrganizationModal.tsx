@@ -1,58 +1,37 @@
 import React, { useState, useEffect } from "react";
-import { X, Building, Building2, AlertCircle, Save } from "lucide-react";
-import { securityService, OrganizationDetail, GroupDetail } from "@services/securityApi";
+import { X, Building, AlertCircle, Save } from "lucide-react";
+import { OrganizationDetail } from "@services/securityApi";
 
-interface GroupModalProps {
+interface OrganizationModalProps {
     isOpen: boolean;
     onClose: () => void;
-    group?: GroupDetail | null;
+    organization?: OrganizationDetail | null;
     mode: "view" | "edit" | "create";
-    onSave: (groupData: any) => Promise<void>;
+    onSave: (organizationData: any) => Promise<void>;
 }
 
-const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, group, mode, onSave }) => {
+const OrganizationModal: React.FC<OrganizationModalProps> = ({ isOpen, onClose, organization, mode, onSave }) => {
     const [formData, setFormData] = useState({
         name: "",
         description: "",
-        organizationId: "",
     });
-    const [organizations, setOrganizations] = useState<OrganizationDetail[]>([]);
     const [loading, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Fetch organizations from the real API when the modal opens
     useEffect(() => {
-        if (isOpen) {
-            const fetchOrganizations = async () => {
-                try {
-                    const fetchedOrgs = await securityService.getOrganizations();
-                    setOrganizations(fetchedOrgs);
-                } catch (err) {
-                    console.error("Failed to fetch organizations:", err);
-                    setError("Failed to load organizations.");
-                }
-            };
-            fetchOrganizations();
-        }
-    }, [isOpen]);
-
-    // Set form data based on the current mode and group prop
-    useEffect(() => {
-        if (group && (mode === "edit" || mode === "view")) {
+        if (organization && (mode === "edit" || mode === "view")) {
             setFormData({
-                name: group.name || "",
-                description: group.description || "",
-                organizationId: group.organization_id?.toString() || "",
+                name: organization.name || "",
+                description: organization.description || "",
             });
         } else if (mode === "create") {
             setFormData({
                 name: "",
                 description: "",
-                organizationId: "",
             });
         }
         setError(null);
-    }, [group, mode, isOpen]);
+    }, [organization, mode, isOpen]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -62,13 +41,10 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, group, mode, o
         setError(null);
 
         try {
-            await onSave({
-                ...formData,
-                organization_id: parseInt(formData.organizationId),
-            });
+            await onSave(formData);
             onClose();
         } catch (err: any) {
-            setError(err.message || "Failed to save group");
+            setError(err.message || "Failed to save organization");
         } finally {
             setSaving(false);
         }
@@ -80,7 +56,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, group, mode, o
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-cyan-600 to-cyan-700 px-6 py-4">
+                <div className="bg-gradient-to-r from-indigo-600 to-purple-700 px-6 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
@@ -89,12 +65,14 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, group, mode, o
                             <div>
                                 <h2 className="text-xl font-semibold text-white">
                                     {mode === "create"
-                                        ? "Create New Group"
+                                        ? "Create New Organization"
                                         : mode === "edit"
-                                        ? "Edit Group"
-                                        : "Group Details"}
+                                        ? "Edit Organization"
+                                        : "Organization Details"}
                                 </h2>
-                                {group && mode === "view" && <p className="text-cyan-100 text-sm">ID: {group.id}</p>}
+                                {organization && mode === "view" && (
+                                    <p className="text-indigo-100 text-sm">ID: {organization.id}</p>
+                                )}
                             </div>
                         </div>
                         <button
@@ -109,7 +87,6 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, group, mode, o
                 {/* Main Content */}
                 <div className="flex-1 overflow-y-auto">
                     <form onSubmit={handleSubmit} className="p-6">
-                        {/* Error Display */}
                         {error && (
                             <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
                                 <div className="flex items-start">
@@ -122,22 +99,19 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, group, mode, o
                             </div>
                         )}
 
-                        {/* Basic Information */}
-                        <div className="bg-gradient-to-br from-cyan-50 to-cyan-50 rounded-xl p-6 border border-cyan-100">
-                            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                                <Building2 className="h-5 w-5 mr-2 text-gray-600" />
-                                Group Information
-                            </h3>
+                        <div className="bg-gradient-to-br from-indigo-50 to-indigo-50 rounded-xl p-6 border border-indigo-100">
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Group Name *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Organization Name *
+                                    </label>
                                     <input
                                         type="text"
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         disabled={mode === "view"}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 disabled:bg-gray-100 disabled:text-gray-600"
-                                        placeholder="Enter group name"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:text-gray-600"
+                                        placeholder="Enter organization name"
                                         required
                                     />
                                 </div>
@@ -149,42 +123,15 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, group, mode, o
                                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                         disabled={mode === "view"}
                                         rows={4}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 disabled:bg-gray-100 disabled:text-gray-600"
-                                        placeholder="Describe the group's purpose and mission"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:text-gray-600"
+                                        placeholder="Describe the organization's purpose and mission"
                                     />
-                                </div>
-
-                                <div>
-                                    <label htmlFor="organization" className="block text-sm font-medium text-gray-700">
-                                        Organization <span className="text-red-500">*</span>
-                                    </label>
-                                    <select
-                                        id="organization"
-                                        name="organization"
-                                        value={formData.organizationId}
-                                        onChange={(e) =>
-                                            setFormData((prev) => ({
-                                                ...prev,
-                                                organizationId: e.target.value,
-                                            }))
-                                        }
-                                        className="mt-1 block w-full pl-3 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm rounded-md disabled:bg-gray-100 disabled:text-gray-600"
-                                        disabled={mode === "view"}
-                                        required
-                                    >
-                                        <option value="">Select an organization</option>
-                                        {organizations.map((org) => (
-                                            <option key={org.id} value={org.id}>
-                                                {org.name}
-                                            </option>
-                                        ))}
-                                    </select>
                                 </div>
                             </div>
                         </div>
 
                         {/* Footer */}
-                        <div className="flex justify-end space-x-3 pt-6 mt-6 border-t border-gray-200 bg-gray-50 -mx-6 px-6 -mb-6 pb-6">
+                        <div className="flex justify-end space-x-3 pt-6 mt-6 border-t border-gray-200">
                             <button
                                 type="button"
                                 onClick={onClose}
@@ -197,7 +144,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, group, mode, o
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="px-6 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-colors"
+                                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-colors"
                                 >
                                     {loading ? (
                                         <>
@@ -207,7 +154,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, group, mode, o
                                     ) : (
                                         <>
                                             <Save className="h-4 w-4 mr-2" />
-                                            {mode === "create" ? "Create Group" : "Save Changes"}
+                                            {mode === "create" ? "Create Organization" : "Save Changes"}
                                         </>
                                     )}
                                 </button>
@@ -220,4 +167,4 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, group, mode, o
     );
 };
 
-export default GroupModal;
+export default OrganizationModal;

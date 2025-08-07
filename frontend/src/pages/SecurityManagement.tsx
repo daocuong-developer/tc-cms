@@ -12,31 +12,25 @@ import {
     Lock,
     Unlock,
     MoreVertical,
+    Building,
     Building2,
     Crown,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import {
-    securityService,
-    UserDetail,
-    RoleDetail,
-    GroupDetail,
-    PermissionDetail,
-    DepartmentDetail,
-} from "../services/securityApi";
+import { securityService, UserDetail, RoleDetail, GroupDetail, PermissionDetail } from "../services/securityApi";
 import UserModal from "@components/models/UserModal";
 import ConfirmDialog from "@components/models/ConfirmDialog";
 import RoleModal from "@components/models/RoleModal";
-import DepartmentModal from "@components/models/DepartmentModal";
 import PermissionModal from "@components/models/PermissionModal";
+import GroupModal from "@/components/models/GroupModal";
 
 const SecurityManagement: React.FC = () => {
     const { user, hasPermission, isLoading: authLoading } = useAuth();
-    const [activeTab, setActiveTab] = useState<"users" | "roles" | "departments" | "permissions">("users");
+    const [activeTab, setActiveTab] = useState<"users" | "roles" | "permissions" | "groups">("users");
     const [searchTerm, setSearchTerm] = useState("");
     const [users, setUsers] = useState<UserDetail[]>([]);
     const [roles, setRoles] = useState<RoleDetail[]>([]);
-    const [departments, setDepartments] = useState<DepartmentDetail[]>([]);
+    const [groups, setGroups] = useState<GroupDetail[]>([]);
     const [permissions, setPermissions] = useState<PermissionDetail[]>([]);
 
     const [loadingData, setLoadingData] = useState(true);
@@ -49,7 +43,6 @@ const SecurityManagement: React.FC = () => {
             (role) => role.name.toLowerCase().includes("super") || role.name.toLowerCase().includes("admin")
         );
 
-    // Enhanced permission check that allows Super Admin full access
     const checkPermission = (permission: string) => {
         return isSuperAdmin || hasPermission(permission);
     };
@@ -89,14 +82,14 @@ const SecurityManagement: React.FC = () => {
         role: null,
     });
 
-    const [departmentModal, setDepartmentModal] = useState<{
+    const [groupModal, setGroupModal] = useState<{
         isOpen: boolean;
         mode: "view" | "edit" | "create";
-        department?: DepartmentDetail | null;
+        group?: GroupDetail | null;
     }>({
         isOpen: false,
         mode: "view",
-        department: null,
+        group: null,
     });
 
     const [permissionModal, setPermissionModal] = useState<{
@@ -121,9 +114,8 @@ const SecurityManagement: React.FC = () => {
             if (checkPermission("view_role")) {
                 promises.push(securityService.getRoles().then(setRoles));
             }
-            if (checkPermission("view_department")) {
-                const canViewAllDepartments = checkPermission("view_all_departments");
-                promises.push(securityService.getDepartments(canViewAllDepartments).then(setDepartments));
+            if (checkPermission("view_group")) {
+                promises.push(securityService.getGroups().then(setGroups));
             }
             if (checkPermission("view_permission")) {
                 promises.push(securityService.getPermissions().then(setPermissions));
@@ -148,20 +140,14 @@ const SecurityManagement: React.FC = () => {
     const tabCounts = {
         users: users.length,
         roles: roles.length,
-        departments: departments.length,
+        groups: roles.length,
         permissions: permissions.length,
     };
 
     const tabs = [
         { id: "users", label: "Users", icon: Users, count: tabCounts.users, permission: "view_user" },
         { id: "roles", label: "Roles", icon: Shield, count: tabCounts.roles, permission: "view_role" },
-        {
-            id: "departments",
-            label: "Departments",
-            icon: Building2,
-            count: tabCounts.departments,
-            permission: "view_department",
-        },
+        { id: "groups", label: "Groups", icon: Users, count: tabCounts.groups, permission: "view_group" },
         {
             id: "permissions",
             label: "Permissions",
@@ -299,68 +285,65 @@ const SecurityManagement: React.FC = () => {
         }
     };
 
-    // Department action handlers
-    const handleViewDepartment = (department: DepartmentDetail) => {
-        setDepartmentModal({
+    // Group action handlers
+    const handleViewGroup = (group: GroupDetail) => {
+        setGroupModal({
             isOpen: true,
             mode: "view",
-            department,
+            group,
         });
     };
 
-    const handleEditDepartment = (department: DepartmentDetail) => {
-        setDepartmentModal({
+    const handleEditGroup = (group: GroupDetail) => {
+        setGroupModal({
             isOpen: true,
             mode: "edit",
-            department,
+            group,
         });
     };
 
-    const handleCreateDepartment = () => {
-        setDepartmentModal({
+    const handleCreateGroup = () => {
+        setGroupModal({
             isOpen: true,
             mode: "create",
-            department: null,
+            group: null,
         });
     };
 
-    const handleDeleteDepartment = (department: DepartmentDetail) => {
+    const handleDeleteGroup = (group: GroupDetail) => {
         setConfirmDialog({
             isOpen: true,
-            title: "Delete Department",
-            message: `Are you sure you want to delete department "${department.name}"? This action cannot be undone.`,
-            onConfirm: () => confirmDeleteDepartment(department.id),
+            title: "Delete Group",
+            message: `Are you sure you want to delete group "${group.name}"? This action cannot be undone.`,
+            onConfirm: () => confirmDeleteGroup(group.id),
             loading: false,
         });
     };
 
-    const confirmDeleteDepartment = async (departmentId: string) => {
+    const confirmDeleteGroup = async (groupId: string) => {
         setConfirmDialog((prev) => ({ ...prev, loading: true }));
         try {
-            await securityService.deleteDepartment(departmentId);
-            setDepartments(departments.filter((d) => d.id !== departmentId));
+            await securityService.deleteGroup(groupId);
+            setGroups(groups.filter((g) => g.id !== groupId));
             setConfirmDialog((prev) => ({ ...prev, isOpen: false, loading: false }));
         } catch (error) {
-            console.error("Error deleting department:", error);
+            console.error("Error deleting group:", error);
             setConfirmDialog((prev) => ({ ...prev, loading: false }));
         }
     };
 
-    const handleSaveDepartment = async (departmentData: any) => {
+    const handleSaveGroup = async (groupData: Partial<GroupDetail>) => {
         try {
-            if (departmentModal.mode === "create") {
-                const newDepartment = await securityService.createDepartment(departmentData);
-                setDepartments([...departments, newDepartment]);
-            } else if (departmentModal.mode === "edit" && departmentModal.department) {
-                const updatedDepartment = await securityService.updateDepartment(
-                    departmentModal.department.id,
-                    departmentData
-                );
-                setDepartments(departments.map((d) => (d.id === updatedDepartment.id ? updatedDepartment : d)));
+            if (groupModal.mode === "create") {
+                const newGroup = await securityService.createGroup(groupData);
+                setGroups((prev) => [...prev, newGroup]);
+            } else if (groupModal.mode === "edit" && groupModal.group) {
+                const updatedGroup = await securityService.updateGroup(groupModal.group.id, groupData);
+                setGroups((prev) => prev.map((g) => (g.id === updatedGroup.id ? updatedGroup : g)));
             }
-            setDepartmentModal({ isOpen: false, mode: "view", department: null });
+            setGroupModal({ isOpen: false, mode: "view", group: null });
         } catch (error) {
-            console.error("Error saving department:", error);
+            console.error("Error saving group:", error);
             throw error;
         }
     };
@@ -772,7 +755,7 @@ const SecurityManagement: React.FC = () => {
         </div>
     );
 
-    const renderDepartments = () => (
+    const renderGroups = () => (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-4">
@@ -783,73 +766,73 @@ const SecurityManagement: React.FC = () => {
                             placeholder="Search departments..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
                         />
                     </div>
                 </div>
-                {checkPermission("add_department") && (
+                {checkPermission("add_group") && (
                     <button
-                        onClick={handleCreateDepartment}
-                        className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                        onClick={handleCreateGroup}
+                        className="flex items-center px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
                     >
                         <Plus className="h-4 w-4 mr-2" />
-                        Create Department
+                        Create Group
                     </button>
                 )}
             </div>
 
             {loadingData ? (
                 <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
                     <span className="ml-2 text-gray-600">Loading departments...</span>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {departments
+                    {groups
                         .filter(
-                            (department) =>
-                                department.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                department.description?.toLowerCase().includes(searchTerm.toLowerCase())
+                            (group) =>
+                                group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                group.description?.toLowerCase().includes(searchTerm.toLowerCase())
                         )
-                        .map((department) => (
+                        .map((group) => (
                             <div
-                                key={department.id}
-                                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-all duration-200 hover:border-purple-300"
+                                key={group.id}
+                                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-all duration-200 hover:border-cyan-300"
                             >
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center">
-                                        <div className="p-2 bg-purple-100 rounded-lg mr-3">
-                                            <Building2 className="h-6 w-6 text-purple-600" />
+                                        <div className="p-2 bg-cyan-100 rounded-lg mr-3">
+                                            <Building className="h-6 w-6 text-cyan-600" />
                                         </div>
                                         <div>
-                                            <h4 className="text-lg font-medium text-gray-900">{department.name}</h4>
+                                            <h4 className="text-lg font-medium text-gray-900">{group.name}</h4>
                                             <p className="text-sm text-gray-500 flex items-center">
                                                 <Users className="h-4 w-4 mr-1" />
-                                                {department.members || 0} members
+                                                {group.members || 0} members
                                             </p>
                                         </div>
                                     </div>
                                 </div>
-                                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{department.description}</p>
+                                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{group.description}</p>
 
                                 <div className="space-y-2">
                                     <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                                         Assigned Roles
                                     </p>
                                     <div className="flex flex-wrap gap-1">
-                                        {department.roles && department.roles.length > 0 ? (
+                                        {group.roles && group.roles.length > 0 ? (
                                             <>
-                                                {department.roles.slice(0, 2).map((role, index) => (
+                                                {group.roles.slice(0, 2).map((role, index) => (
                                                     <span
                                                         key={index}
-                                                        className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full"
+                                                        className="px-2 py-1 bg-cyan-100 text-cyan-800 text-xs rounded-full"
                                                     >
                                                         {role.name}
                                                     </span>
                                                 ))}
-                                                {department.roles.length > 2 && (
+                                                {group.roles.length > 2 && (
                                                     <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                                                        +{department.roles.length - 2} more
+                                                        +{group.roles.length - 2} more
                                                     </span>
                                                 )}
                                             </>
@@ -864,7 +847,7 @@ const SecurityManagement: React.FC = () => {
                                 <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end space-x-2">
                                     {checkPermission("view_department") && (
                                         <button
-                                            onClick={() => handleViewDepartment(department)}
+                                            onClick={() => handleViewGroup(group)}
                                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                             title="View department"
                                         >
@@ -873,7 +856,7 @@ const SecurityManagement: React.FC = () => {
                                     )}
                                     {checkPermission("change_department") && (
                                         <button
-                                            onClick={() => handleEditDepartment(department)}
+                                            onClick={() => handleEditGroup(group)}
                                             className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
                                             title="Edit department"
                                         >
@@ -882,7 +865,7 @@ const SecurityManagement: React.FC = () => {
                                     )}
                                     {checkPermission("delete_department") && (
                                         <button
-                                            onClick={() => handleDeleteDepartment(department)}
+                                            onClick={() => handleDeleteGroup(group)}
                                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                             title="Delete department"
                                         >
@@ -1093,12 +1076,12 @@ const SecurityManagement: React.FC = () => {
             <div className="mt-6">
                 {activeTab === "users" && checkPermission("view_user") && renderUsers()}
                 {activeTab === "roles" && checkPermission("view_role") && renderRoles()}
-                {activeTab === "departments" && checkPermission("view_department") && renderDepartments()}
                 {activeTab === "permissions" && checkPermission("view_permission") && renderPermissions()}
+                {activeTab === "groups" && checkPermission("view_group") && renderGroups()}
 
                 {!checkPermission("view_user") &&
                     !checkPermission("view_role") &&
-                    !checkPermission("view_department") &&
+                    !checkPermission("view_group") &&
                     !checkPermission("view_permission") && (
                         <div className="text-center py-12">
                             <Lock className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -1117,7 +1100,7 @@ const SecurityManagement: React.FC = () => {
                 user={userModal.user}
                 mode={userModal.mode}
                 roles={roles}
-                departments={departments}
+                // departments={department}
                 onSave={handleSaveUser}
             />
 
@@ -1130,13 +1113,13 @@ const SecurityManagement: React.FC = () => {
                 onSave={handleSaveRole}
             />
 
-            <DepartmentModal
-                isOpen={departmentModal.isOpen}
-                onClose={() => setDepartmentModal({ isOpen: false, mode: "view", department: null })}
-                department={departmentModal.department}
-                mode={departmentModal.mode}
+            <GroupModal
+                isOpen={groupModal.isOpen}
+                onClose={() => setGroupModal({ isOpen: false, mode: "view", group: null })}
+                group={groupModal.group}
+                mode={groupModal.mode}
                 roles={roles}
-                onSave={handleSaveDepartment}
+                onSave={handleSaveGroup}
             />
 
             <PermissionModal

@@ -40,7 +40,8 @@ export interface GroupDetail {
     name: string;
     description: string;
     members: number;
-    roles: string[];
+    roles: { id: string; name: string }[];
+    users: { id: string; username: string; full_name?: string }[];
 }
 
 export interface DepartmentDetail {
@@ -120,11 +121,34 @@ export const securityService = {
         return response.data;
     },
 
+    createOrganization: async (organizationData: any): Promise<OrganizationDetail> => {
+        const response = await securityApi.post<OrganizationDetail>("/auth/organizations/", organizationData);
+        return response.data;
+    },
+    updateOrganization: async (id: string, organizationData: any): Promise<OrganizationDetail> => {
+        const response = await securityApi.put<OrganizationDetail>(`/auth/organizations/${id}/`, organizationData);
+        return response.data;
+    },
+    deleteOrganization: async (id: string): Promise<void> => {
+        await securityApi.delete(`/auth/organizations/${id}/`);
+    },
+
     // Group Management
-    // getGroups: async (): Promise<GroupDetail[]> => {
-    //     const response = await securityApi.get<GroupDetail[]>("auth/groups/");
-    //     return response.data;
-    // },
+    getGroups: async (): Promise<GroupDetail[]> => {
+        const response = await securityApi.get<GroupDetail[]>("/auth/groups/");
+        return response.data;
+    },
+    createGroup: async (groupData: any): Promise<GroupDetail> => {
+        const response = await securityApi.post<GroupDetail>("/auth/groups/", groupData);
+        return response.data;
+    },
+    updateGroup: async (id: string, groupData: any): Promise<GroupDetail> => {
+        const response = await securityApi.put<GroupDetail>(`/auth/groups/${id}/`, groupData);
+        return response.data;
+    },
+    deleteGroup: async (id: string): Promise<void> => {
+        await securityApi.delete(`/auth/groups/${id}/`);
+    },
 
     // Departments Management
     getDepartments: async (includeAllOrganizations = false): Promise<DepartmentDetail[]> => {

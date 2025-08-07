@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
     Building,
     Building2,
+    Users,
     Plus,
     Edit,
     Trash2,
@@ -15,7 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@contexts/AuthContext";
 import { securityService, OrganizationDetail, DepartmentDetail } from "@services/securityApi";
-import GroupModal from "@components/models/GroupModal";
+import OrganizationModal from "@components/models/OrganizationModal";
 import DepartmentModal from "@components/models/DepartmentModal";
 import ConfirmDialog from "@components/models/ConfirmDialog";
 
@@ -154,7 +155,7 @@ const OrganizationManagement: React.FC = () => {
                     await securityService.deleteOrganization(organization.id);
                     setOrganizations((prev) => prev.filter((org) => org.id !== organization.id));
                     setConfirmDialog((prev) => ({ ...prev, isOpen: false, loading: false }));
-                    await fetchAllData(); // Refresh all data
+                    await fetchAllData();
                 } catch (error) {
                     console.error("Error deleting organization:", error);
                     setConfirmDialog((prev) => ({ ...prev, loading: false }));
@@ -178,7 +179,7 @@ const OrganizationManagement: React.FC = () => {
                     prev.map((org) => (org.id === updatedOrganization.id ? updatedOrganization : org))
                 );
             }
-            await fetchAllData(); // Refresh all data
+            await fetchAllData();
         } catch (error) {
             console.error("Error saving organization:", error);
             throw error;
@@ -221,7 +222,7 @@ const OrganizationManagement: React.FC = () => {
                     await securityService.deleteDepartment(department.id);
                     setDepartments((prev) => prev.filter((dept) => dept.id !== department.id));
                     setConfirmDialog((prev) => ({ ...prev, isOpen: false, loading: false }));
-                    await fetchAllData(); // Refresh all data
+                    await fetchAllData();
                 } catch (error) {
                     console.error("Error deleting department:", error);
                     setConfirmDialog((prev) => ({ ...prev, loading: false }));
@@ -245,7 +246,7 @@ const OrganizationManagement: React.FC = () => {
                     prev.map((dept) => (dept.id === updatedDepartment.id ? updatedDepartment : dept))
                 );
             }
-            await fetchAllData(); // Refresh all data
+            await fetchAllData();
         } catch (error) {
             console.error("Error saving department:", error);
             throw error;
@@ -265,7 +266,7 @@ const OrganizationManagement: React.FC = () => {
         (dept) =>
             dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             dept.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            dept.organization?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+            (dept.organization as any)?.name?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const tabCounts = {
@@ -484,7 +485,7 @@ const OrganizationManagement: React.FC = () => {
                                     <div>
                                         <h4 className="text-lg font-medium text-gray-900">{department.name}</h4>
                                         <p className="text-sm text-gray-500">
-                                            {department.organization?.name || "No organization"}
+                                            {(department as any).organization?.name || "No organization"}
                                         </p>
                                         <p className="text-xs text-gray-400">{department.members || 0} members</p>
                                     </div>
@@ -604,7 +605,6 @@ const OrganizationManagement: React.FC = () => {
             <div className="mt-6">
                 {activeTab === "organizations" && hasPermission("view_organization") && renderOrganizations()}
                 {activeTab === "departments" && hasPermission("view_department") && renderDepartments()}
-
                 {!hasPermission("view_organization") && !hasPermission("view_department") && (
                     <div className="text-center text-red-600 mt-10">
                         You do not have permission to view any organization management sections.
@@ -613,7 +613,7 @@ const OrganizationManagement: React.FC = () => {
             </div>
 
             {/* Modals */}
-            <GroupModal
+            <OrganizationModal
                 isOpen={organizationModal.isOpen}
                 onClose={() => setOrganizationModal((prev) => ({ ...prev, isOpen: false }))}
                 organization={organizationModal.organization}
@@ -626,7 +626,7 @@ const OrganizationManagement: React.FC = () => {
                 onClose={() => setDepartmentModal((prev) => ({ ...prev, isOpen: false }))}
                 department={departmentModal.department}
                 mode={departmentModal.mode}
-                roles={[]} // You might want to fetch roles here
+                roles={[]}
                 onSave={handleSaveDepartment}
             />
 
