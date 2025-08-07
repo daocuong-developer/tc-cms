@@ -3,7 +3,7 @@ export interface User {
     email: string;
     full_name: string;
     roles: Role[];
-    permissions?: string[]; 
+    permissions?: string[];
 }
 
 export interface Role {
@@ -42,6 +42,7 @@ export interface AuthContextType {
     login: (credentials: LoginCredentials) => Promise<void>;
     logout: () => Promise<void>;
     register: (data: RegisterData) => Promise<void>;
+    forceLogout: (message?: string) => Promise<void>;
     hasPermission: (codename: string) => boolean;
     isAuthenticated: boolean;
     isLoading: boolean;

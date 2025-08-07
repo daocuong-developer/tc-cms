@@ -1,6 +1,7 @@
 import axios from "axios";
 import Cookies from "js-cookie";
 import type { AuthResponse, LoginCredentials, RegisterData, User } from "../types/auth.types";
+import { getAuthContext } from "./authContextHelper";
 
 const API_URL = "http://localhost:8000/api";
 
@@ -12,7 +13,22 @@ const api = axios.create({
     },
 });
 
-// Add JWT token to requests if available
+// === Refresh token queue ===
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+    failedQueue.forEach((prom) => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token);
+        }
+    });
+    failedQueue = [];
+};
+
+// === Add JWT token to all requests ===
 api.interceptors.request.use((config) => {
     const token = Cookies.get("access_token");
     if (token) {
@@ -21,6 +37,7 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+// === Auth API ===
 export const authApi = {
     login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
         const response = await api.post<AuthResponse>("/auth/login/", credentials);
@@ -36,7 +53,6 @@ export const authApi = {
         return response.data;
     },
 
-    // fix: Ensure tokens are always cleared on logout
     logout: async (): Promise<void> => {
         const refresh_token = Cookies.get("refresh_token");
         console.log("Refresh token gửi đi:", refresh_token);
@@ -62,15 +78,18 @@ export const authApi = {
         const refresh = Cookies.get("refresh_token");
         if (!refresh) throw new Error("No refresh token");
 
-        const response = await api.post<{ access: string }>("/auth/token/refresh/", {
-            refresh,
-        });
+        const response = await axios.post<{ access: string }>(
+            `${API_URL}/auth/token/refresh/`,
+            { refresh },
+            { withCredentials: true }
+        );
 
         Cookies.set("access_token", response.data.access);
         return response.data;
     },
 };
 
+// === Response Interceptor: handle token refresh ===
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -79,13 +98,38 @@ api.interceptors.response.use(
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
 
+            if (isRefreshing) {
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({
+                        resolve: (token: string) => {
+                            originalRequest.headers.Authorization = `Bearer ${token}`;
+                            resolve(api(originalRequest));
+                        },
+                        reject: (err: any) => {
+                            reject(err);
+                        },
+                    });
+                });
+            }
+
+            isRefreshing = true;
+
             try {
                 const { access } = await authApi.refreshToken();
+                processQueue(null, access);
                 originalRequest.headers.Authorization = `Bearer ${access}`;
                 return api(originalRequest);
             } catch (err) {
-                await authApi.logout();
-                return Promise.reject(error);
+                processQueue(err, null);
+
+                const ctx = getAuthContext();
+                if (ctx) {
+                    await ctx.forceLogout("Your session has expired. Please log in again.");
+                }
+
+                return Promise.reject(err);
+            } finally {
+                isRefreshing = false;
             }
         }
 

@@ -2,6 +2,8 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { useNavigate } from "react-router-dom";
 import type { AuthContextType, LoginCredentials, RegisterData, User } from "../types/auth.types";
 import { authApi } from "@services/authApi";
+import { toast } from "react-toastify";
+import { setAuthContext } from "@services/authContextHelper";
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -55,7 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const logout = async () => {
+    const logout = useCallback(async () => {
         setIsLoading(true);
         try {
             await authApi.logout();
@@ -64,7 +66,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [navigate]);
+
+    const forceLogout = useCallback(
+        async (message = "Your session has expired. Please log in again.") => {
+            toast.error(message);
+            await logout();
+        },
+        [logout]
+    );
 
     const normalizePermission = (code: string): string => {
         return code.trim().toLowerCase().replace(/_?s$/, "");
@@ -83,11 +93,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         logout,
         register,
+        forceLogout,
         hasPermission,
         isAuthenticated: !!user,
         isLoading,
     };
 
+    useEffect(() => {
+        if (value.isAuthenticated) {
+            setAuthContext(value);
+        }
+    }, [value]);
+    
     if (isLoading) {
         return <div>Loading...</div>; // You can replace this with a proper loading component
     }
