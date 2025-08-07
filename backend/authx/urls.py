@@ -6,7 +6,7 @@ from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
 from .views import (
     CustomTokenObtainPairView, 
     UserViewSet, RoleViewSet, PermissionViewSet,
-    OrganizationViewSet, DepartmentViewSet, 
+    OrganizationViewSet, DepartmentViewSet, GroupViewSet,
     logout 
 )
 
@@ -17,7 +17,7 @@ router.register(r'roles', RoleViewSet)
 router.register(r'permissions', PermissionViewSet)
 router.register(r'organizations', OrganizationViewSet) 
 router.register(r'departments', DepartmentViewSet)   
-
+router.register(r'groups', GroupViewSet)
 
 urlpatterns = [
     # Authentication endpoints

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate, get_user_model
-from .models import Permission, Role, Organization, Department
+from .models import Permission, Role, Organization, Department, Group
 from django.db.models import Count
 from .models import Permission
 
@@ -20,6 +20,16 @@ class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
         fields = '__all__'
+
+class GroupSerializer(serializers.ModelSerializer):
+    organization = OrganizationSerializer(read_only=True)
+    organization_id = serializers.PrimaryKeyRelatedField(
+        queryset=Organization.objects.all(), source='organization', write_only=True
+    )
+
+    class Meta:
+        model = Group
+        fields = ['id', 'name', 'description', 'organization', 'organization_id']
 
 class PermissionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -53,26 +63,33 @@ class UserSerializer(serializers.ModelSerializer):
     role_ids = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Role.objects.all(), source='roles', write_only=True, required=False
     )
+
     organization = OrganizationSerializer(read_only=True)
     organization_id = serializers.PrimaryKeyRelatedField(
         queryset=Organization.objects.all(), source='organization', write_only=True, required=False, allow_null=True
     )
+
     department = DepartmentSerializer(read_only=True)
     department_id = serializers.PrimaryKeyRelatedField(
         queryset=Department.objects.all(), source='department', write_only=True, required=False, allow_null=True
     )
 
-    last_login = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
+    groups = GroupSerializer(many=True, read_only=True)
+    group_ids = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Group.objects.all(), source='groups', write_only=True, required=False
+    )
+
     is_active = serializers.BooleanField(read_only=True)
     is_online = serializers.BooleanField(read_only=True)
-    last_logout = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
+    last_login = serializers.DateTimeField(read_only=True)
+    last_logout = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = User
         fields = ['id', 'email', 'full_name', 'username', 'is_staff', 'is_superuser',
                   'last_login', 'is_active', 'is_online', 'last_logout',
                   'roles', 'role_ids', 'organization', 'organization_id',
-                  'department', 'department_id']
+                  'department', 'department_id', 'groups', 'group_ids']
         read_only_fields = ['id', 'last_login', 'is_active', 'is_online']
         extra_kwargs = {
             'username': {'required': False},
@@ -81,32 +98,19 @@ class UserSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         roles_data = validated_data.pop('roles', [])
+        groups_data = validated_data.pop('groups', [])
         password = validated_data.pop('password', None)
         user = User(**validated_data)
         if password is not None:
             user.set_password(password)
         user.save()
         user.roles.set(roles_data)
+        user.groups.set(groups_data)
         return user
-
-    # def update(self, instance, validated_data):
-    #     roles_data = validated_data.pop('roles', None)
-    #     password = validated_data.pop('password', None)
-
-    #     for attr, value in validated_data.items():
-    #         setattr(instance, attr, value)
-
-    #     if password is not None:
-    #         instance.set_password(password)
-
-    #     instance.save()
-
-    #     if roles_data is not None:
-    #         instance.roles.set(roles_data)
-    #     return instance
 
     def update(self, instance, validated_data):
         roles_data = validated_data.pop('roles', None)
+        groups_data = validated_data.pop('groups', None)
         password = validated_data.pop('password', None)
 
         instance.email = validated_data.get('email', instance.email)
@@ -128,6 +132,9 @@ class UserSerializer(serializers.ModelSerializer):
         if roles_data is not None:
             instance.roles.set(roles_data)
 
+        if groups_data is not None:
+            instance.groups.set(groups_data)
+            
         return instance
 
 

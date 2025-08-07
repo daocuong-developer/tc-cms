@@ -6,7 +6,7 @@ def permission_required(codename):
     def decorator(view_func):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
-            if not request.user.roles.filter(permissions__codename=codename).exists():
+            if not request.user.is_superuser and not request.user.roles.filter(permissions__codename=codename).exists():
                 return Response(
                     {"detail": "You do not have permission to perform this action."},
                     status=status.HTTP_403_FORBIDDEN
@@ -20,7 +20,8 @@ class HasPermission(permissions.BasePermission):
         self.codename = codename
 
     def has_permission(self, request, view):
-        return request.user.roles.filter(permissions__codename=self.codename).exists()
+        return request.user.is_superuser or request.user.roles.filter(permissions__codename=self.codename).exists()
+
     
 class IsSelfOrAdmin(permissions.BasePermission):
     """

@@ -1,8 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
-
-# --- NEW: Organization Model ---
+# --- Organization Model ---
 class Organization(models.Model):
     name = models.CharField(max_length=255, unique=True)
     description = models.TextField(blank=True, null=True)
@@ -17,7 +16,7 @@ class Organization(models.Model):
     def __str__(self):
         return self.name
 
-# --- NEW: Department Model ---
+# ---  Department Model ---
 class Department(models.Model):
     name = models.CharField(max_length=255)
     organization = models.ForeignKey(
@@ -37,8 +36,29 @@ class Department(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.organization.name})"
+
+# ---  Group Model ---
+class Group(models.Model):
+    name = models.CharField(max_length=255)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='groups'
+    )
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Group'
+        verbose_name_plural = 'Groups'
+        unique_together = ('name', 'organization')
+        ordering = ['organization__name', 'name']
+        
+    def __str__(self):
+        return f"{self.name} ({self.organization.name})"
     
-    
+# --- User ---
 class User(AbstractUser):
     full_name = models.CharField(max_length=255, blank=True)
     email = models.EmailField(unique=True)
@@ -46,7 +66,6 @@ class User(AbstractUser):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
-    # NEW: Thêm trường để theo dõi trạng thái online và thời gian đăng xuất
     is_online = models.BooleanField(default=False)
     last_logout = models.DateTimeField(null=True, blank=True)
     
@@ -89,27 +108,21 @@ class User(AbstractUser):
         Kiểm tra xem người dùng có quyền cụ thể hay không,
         bao gồm cả quyền từ các vai trò tùy chỉnh.
         """
-        # Nếu là superuser, luôn có tất cả quyền
         if self.is_superuser:
             return True
             
-        # Tách quyền ra thành app_label và codename
         try:
             app_label, codename = perm.split('.')
         except ValueError:
             return False
 
-        # Lấy tất cả các codename quyền từ các vai trò của người dùng
         user_permissions_codenames = self.get_all_permissions_codename()
         
-        # Kiểm tra xem codename quyền đó có trong danh sách không
         return codename in user_permissions_codenames
 
-    # Thêm hàm này để tích hợp với các hệ thống permission mặc định của Django
     def has_perms(self, perm_list, obj=None):
         return all(self.has_perm(perm, obj) for perm in perm_list)
 
-    # Hàm bạn đã viết để lấy tất cả các codename quyền từ các vai trò của họ
     def get_all_permissions_codename(self):
         permissions = set() 
         for role in self.roles.all():
@@ -119,11 +132,9 @@ class User(AbstractUser):
     
 # --- Existing Permission Model ---
 class Permission(models.Model):
-    # Old fields
     codename = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
     
-    # New fields to be added
     name = models.CharField(max_length=255, blank=True)
     module = models.CharField(max_length=255, blank=True)
     type = models.CharField(max_length=50, blank=True)
