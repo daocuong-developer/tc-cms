@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate, get_user_model
-from .models import Permission, Role, Organization, Department, Group
+from .models import Permission, Role, Organization, Department, Group, Contract, Software, Customer
 from django.db.models import Count
 from .models import Permission
 
@@ -59,6 +59,28 @@ class RoleSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'permissions', 'permission_ids', 'user_count']
     def get_user_count(self, obj):
         return obj.users.count()
+
+class CustomerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = '__all__'
+
+class ContractSerializer(serializers.ModelSerializer):
+    customer = CustomerSerializer(read_only=True)
+    customer_id = serializers.PrimaryKeyRelatedField(
+        queryset=Customer.objects.all(), source='customer', write_only=True
+    )
+
+    class Meta:
+        model = Contract
+        fields = ['id', 'deviceName', 'organization', 'totalAmount', 'startDate', 'endDate', 'status', 'customer', 'customer_id']
+
+class SoftwareSerialzer(serializers.ModelSerializer):
+    class Meta:
+        model = Software
+        fields = '__all__'
+    
+
 
 class UserNestedSerializer(serializers.ModelSerializer):
     class Meta:

@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.contrib.auth import get_user_model
 
 # --- Organization Model ---
 class Organization(models.Model):
@@ -168,3 +169,80 @@ class Role(models.Model):
 
     def __str__(self):
         return self.name
+
+
+# --- Customer Model ---
+class Customer(models.Model):
+    customerName = models.CharField(max_length=255)
+    email = models.EmailField(unique=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    deviceName = models.CharField(max_length=255, blank=True, null=True)
+    organization = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Customer'
+        verbose_name_plural = 'Customers'
+        ordering = ['customerName']
+
+    def __str__(self):
+        return self.customerName
+    
+# --- Contract Model ---
+class Contract(models.Model):
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name='contracts'
+    )
+    deviceName = models.CharField(max_length=255)
+    organization = models.CharField(max_length=255)
+    totalAmount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    startDate = models.DateTimeField()
+    endDate = models.DateTimeField()
+    status = models.CharField(
+        max_length=50,
+        choices=[
+            ('ACTIVE', 'Active'),
+            ('EXPIRED', 'Expired'),
+            ('PAUSED', 'Paused'),
+        ],
+        default='ACTIVE'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Contract'
+        verbose_name_plural = 'Contracts'
+        ordering = ['-startDate']
+
+    def __str__(self):
+        return f"Contract for {self.customer.customerName} - {self.deviceName}"
+    
+# --- Software Model ---
+class Software(models.Model):
+    name = models.CharField(max_length=255)
+    version = models.CharField(max_length=50)
+    platform = models.CharField(max_length=50)
+    isCurrentVersion = models.BooleanField(default=True)
+    status = models.CharField(
+        max_length=50,
+        choices=[
+            ('ACTIVE', 'Active'),
+            ('INACTIVE', 'Inactive'),
+        ],
+        default='ACTIVE'
+    )
+    lastUpdated = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = 'Software'
+        verbose_name_plural = 'Software'
+        unique_together = ('name', 'version', 'platform')
+        ordering = ['name', '-lastUpdated']
+
+    def __str__(self):
+        return f"{self.name} v{self.version} ({self.platform})"

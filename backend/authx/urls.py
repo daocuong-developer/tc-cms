@@ -2,11 +2,10 @@ from django.urls import path,  include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
 
-
 from .views import (
     CustomTokenObtainPairView, 
     UserViewSet, RoleViewSet, PermissionViewSet,
-    OrganizationViewSet, DepartmentViewSet, GroupViewSet,
+    OrganizationViewSet, DepartmentViewSet, GroupViewSet,CustomerViewSet, ContractViewSet, SoftwareViewSet,
     logout 
 )
 
@@ -18,6 +17,9 @@ router.register(r'permissions', PermissionViewSet)
 router.register(r'organizations', OrganizationViewSet) 
 router.register(r'departments', DepartmentViewSet)   
 router.register(r'groups', GroupViewSet)
+router.register(r'customers', CustomerViewSet, basename='customer')
+router.register(r'contracts', ContractViewSet, basename="contract")
+router.register(r'software', SoftwareViewSet, basename='software')
 
 urlpatterns = [
     # Authentication endpoints

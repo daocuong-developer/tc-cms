@@ -1,10 +1,9 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, Role, Permission, Organization, Department, Group
+from .models import User, Role, Permission, Organization, Department, Group, Customer, Contract, Software
 
 @admin.register(User)
-
-class UserAdmin(BaseUserAdmin):    
+class UserAdmin(BaseUserAdmin):
     list_display = ('email', 'full_name', 'is_staff', 'is_active', 'organization', 'department', 'get_roles')
     search_fields = ('email', 'full_name', 'organization__name', 'department__name')
     ordering = ('email',)
@@ -16,7 +15,6 @@ class UserAdmin(BaseUserAdmin):
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser')}),
         ('Organization and Department', {'fields': ('organization', 'department')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
-
     )
 
     add_fieldsets = (
@@ -34,12 +32,14 @@ class UserAdmin(BaseUserAdmin):
         return ", ".join([role.name for role in obj.roles.all()])
     get_roles.short_description = 'Roles'
 
+# Registers the Role model
 @admin.register(Role)
 class RoleAdmin(admin.ModelAdmin):
     list_display = ('name', 'description')
     search_fields = ('name', 'description')
     filter_horizontal = ('permissions', 'users')
 
+# Registers the Permission model
 @admin.register(Permission)
 class PermissionAdmin(admin.ModelAdmin):
     list_display = ('codename', 'description', 'get_roles')
@@ -50,22 +50,49 @@ class PermissionAdmin(admin.ModelAdmin):
         return ", ".join([role.name for role in obj.roles.all()])
     get_roles.short_description = 'Roles'
 
+# Registers the Organization model
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
     list_display = ('name', 'description', 'created_at')
     search_fields = ('name',)
     ordering = ('name',)
 
+# Registers the Group model
 @admin.register(Group)
 class GroupAdmin(admin.ModelAdmin):
     list_display = ('name', 'organization', 'description')
     list_filter = ('organization',)
     search_fields = ('name', 'description')
 
-
+# Registers the Department model
 @admin.register(Department)
 class DepartmentAdmin(admin.ModelAdmin):
     list_display = ('name', 'organization', 'description', 'created_at')
     search_fields = ('name', 'organization__name')
     list_filter = ('organization',)
     ordering = ('organization__name', 'name')
+
+# Registers the Customer model
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ('customerName', 'email', 'phone', 'deviceName', 'organization', 'created_at')
+    search_fields = ('customerName', 'email', 'phone')
+    ordering = ('customerName',)
+    list_filter = ('organization',)
+
+# Registers the Contract model
+@admin.register(Contract)
+class ContractAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'deviceName', 'status', 'startDate', 'endDate', 'totalAmount')
+    search_fields = ('customer__customerName', 'deviceName', 'organization')
+    list_filter = ('status', 'organization')
+    ordering = ('-startDate',)
+    raw_id_fields = ('customer',)
+
+# Registers the Software model
+@admin.register(Software)
+class SoftwareAdmin(admin.ModelAdmin):
+    list_display = ('name', 'version', 'platform', 'status', 'isCurrentVersion', 'lastUpdated')
+    search_fields = ('name', 'version', 'platform')
+    list_filter = ('platform', 'status', 'isCurrentVersion')
+    ordering = ('name', '-version')

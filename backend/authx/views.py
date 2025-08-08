@@ -11,9 +11,9 @@ from django.contrib.auth.models import update_last_login
 from .serializers import (
     RegisterSerializer, LoginSerializer, UserSerializer,
     OrganizationSerializer, DepartmentSerializer,
-    RoleSerializer, PermissionSerializer, UserAuthSerializer, GroupSerializer
+    RoleSerializer, PermissionSerializer, UserAuthSerializer, GroupSerializer, ContractSerializer, SoftwareSerialzer, CustomerSerializer
 )
-from .models import Role, Permission, Organization, Department, Group
+from .models import Role, Permission, Organization, Department, Group, Contract, Software, Customer
 from .permissions import permission_required, IsSelfOrAdmin  
 
 User = get_user_model()
@@ -143,6 +143,35 @@ class DepartmentViewSet(viewsets.ModelViewSet):
 
         return Department.objects.none()
 
+class CustomerViewSet(viewsets.ModelViewSet):
+    queryset = Customer.objects.all()
+    serializer_class = CustomerSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
+    
+class ContractViewSet(viewsets.ModelViewSet):
+    queryset = Contract.objects.all()
+    serializer_class = ContractSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
+
+class SoftwareViewSet(viewsets.ModelViewSet):
+    queryset = Software.objects.all()
+    serializer_class = SoftwareSerialzer
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
