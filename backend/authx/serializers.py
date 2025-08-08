@@ -32,10 +32,17 @@ class GroupSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'organization', 'organization_id']
 
 class PermissionSerializer(serializers.ModelSerializer):
+    is_default = serializers.SerializerMethodField()
+
     class Meta:
         model = Permission
-        fields = ['id', 'name', 'module', 'description', 'type', 'codename']
+        fields = ['id', 'name', 'module', 'description', 'type', 'codename', 'is_default']
+        extra_fields = ['is_default']
 
+    def get_is_default(self, obj):
+        default_prefixes = ("add_", "change_", "delete_", "view_")
+        return obj.codename.startswith(default_prefixes)
+    
 class RoleSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Role

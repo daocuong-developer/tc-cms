@@ -91,6 +91,7 @@ class PermissionViewSet(viewsets.ModelViewSet):
     serializer_class = PermissionSerializer
     permission_classes = [IsAdminUser]
 
+
 class GroupViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all().order_by('organization__name', 'name')
     serializer_class = GroupSerializer
