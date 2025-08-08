@@ -17,7 +17,7 @@ import {
     Crown,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { securityService, UserDetail, RoleDetail, GroupDetail, PermissionDetail } from "../services/securityApi";
+import { securityService, UserDetail, RoleDetail, GroupDetail, PermissionDetail } from "@services/securityApi";
 import UserModal from "@components/models/UserModal";
 import ConfirmDialog from "@components/models/ConfirmDialog";
 import RoleModal from "@components/models/RoleModal";

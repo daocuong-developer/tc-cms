@@ -1,0 +1,588 @@
+import React, { useState, useEffect, useCallback } from "react";
+import {
+    FileText,
+    Plus,
+    Edit,
+    Trash2,
+    Search,
+    Filter,
+    Eye,
+    RefreshCw,
+    AlertCircle,
+    X,
+    Phone,
+    Mail,
+    Calendar,
+    DollarSign,
+    Clock,
+    CheckCircle,
+    XCircle,
+    AlertTriangle,
+} from "lucide-react";
+import { useAuth } from "@contexts/AuthContext";
+import ContractModal from "@components/models/ContractModal";
+import ConfirmDialog from "@components/models/ConfirmDialog";
+
+interface Contract {
+    id: string;
+    customerName: string;
+    email: string;
+    phone: string;
+    deviceName: string;
+    organization: string;
+    timesMarked: number;
+    startDate: string;
+    endDate: string;
+    status: "ACTIVE" | "EXPIRED" | "PAUSED";
+}
+
+const ContractManagement: React.FC = () => {
+    const { user, hasPermission, isLoading: authLoading } = useAuth();
+    const [searchTerm, setSearchTerm] = useState("");
+    const [contracts, setContracts] = useState<Contract[]>([]);
+    const [loadingData, setLoadingData] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // Modal states
+    const [contractModal, setContractModal] = useState<{
+        isOpen: boolean;
+        mode: "view" | "edit" | "create";
+        contract: Contract | null;
+    }>({
+        isOpen: false,
+        mode: "create",
+        contract: null,
+    });
+
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        loading: boolean;
+    }>({
+        isOpen: false,
+        title: "",
+        message: "",
+        onConfirm: () => {},
+        loading: false,
+    });
+
+    // Mock data
+    const mockContracts: Contract[] = [
+        {
+            id: "1",
+            customerName: "John Doe",
+            email: "john.doe@example.com",
+            phone: "0705897004",
+            deviceName: "MinhKhang-PC",
+            organization: "Tech Corp",
+            timesMarked: 0,
+            startDate: "2025-01-21T02:48:00Z",
+            endDate: "2025-03-28T02:48:00Z",
+            status: "ACTIVE",
+        },
+        {
+            id: "2",
+            customerName: "Jane Smith",
+            email: "jane.smith@example.com",
+            phone: "0335599059",
+            deviceName: "DESKTOP-23D20P1",
+            organization: "TC Solutions",
+            timesMarked: 1558,
+            startDate: "2025-08-30T03:35:00Z",
+            endDate: "2025-07-31T03:35:00Z",
+            status: "ACTIVE",
+        },
+        {
+            id: "3",
+            customerName: "Mike Johnson",
+            email: "mike.johnson@example.com",
+            phone: "0000000000",
+            deviceName: "MacBook Pro M2",
+            organization: "Test Company",
+            timesMarked: 1351,
+            startDate: "2025-06-30T08:27:00Z",
+            endDate: "2025-07-24T08:27:00Z",
+            status: "ACTIVE",
+        },
+        {
+            id: "4",
+            customerName: "Sarah Wilson",
+            email: "sarah.wilson@example.com",
+            phone: "0909090909",
+            deviceName: "WORKSTATION-4H56DP",
+            organization: "BuildCorp",
+            timesMarked: 356,
+            startDate: "2025-03-01T11:54:00Z",
+            endDate: "2025-03-27T11:54:00Z",
+            status: "ACTIVE",
+        },
+        {
+            id: "5",
+            customerName: "Robert Brown",
+            email: "robert.brown@example.com",
+            phone: "0987654322",
+            deviceName: "DESKTOP-US86PDH",
+            organization: "Software Solutions Inc",
+            timesMarked: 0,
+            startDate: "2025-03-10T02:55:00Z",
+            endDate: "2025-03-10T02:55:00Z",
+            status: "ACTIVE",
+        },
+        {
+            id: "6",
+            customerName: "David Anderson",
+            email: "david.anderson@example.com",
+            phone: "0917730408",
+            deviceName: "DavidWorkstation",
+            organization: "Anderson Corp",
+            timesMarked: 1258,
+            startDate: "2025-02-07T09:54:00Z",
+            endDate: "2025-02-14T09:54:00Z",
+            status: "ACTIVE",
+        },
+        {
+            id: "7",
+            customerName: "Emily Davis",
+            email: "emily.davis@example.com",
+            phone: "0705897004",
+            deviceName: "LAPTOP-US86PDH",
+            organization: "Davis Enterprises",
+            timesMarked: 1403,
+            startDate: "2025-02-06T03:25:00Z",
+            endDate: "2025-02-13T03:25:00Z",
+            status: "ACTIVE",
+        },
+        {
+            id: "8",
+            customerName: "Alex Thompson",
+            email: "alex.thompson@example.com",
+            phone: "0329389589",
+            deviceName: "DESKTOP-E3WQ9U",
+            organization: "Thompson Tech",
+            timesMarked: 0,
+            startDate: "2025-02-06T02:37:00Z",
+            endDate: "2025-02-13T02:37:00Z",
+            status: "ACTIVE",
+        },
+    ];
+
+    const fetchData = useCallback(async () => {
+        setLoadingData(true);
+        setError(null);
+        try {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            setContracts(mockContracts);
+        } catch (err) {
+            console.error("Failed to fetch contracts:", err);
+            setError("Failed to load contracts. Please try again.");
+        } finally {
+            setLoadingData(false);
+        }
+    }, []);
+
+    const refreshData = useCallback(async () => {
+        setRefreshing(true);
+        try {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            setContracts(mockContracts);
+        } catch (err) {
+            console.error("Failed to refresh contracts:", err);
+            setError("Failed to refresh contracts. Please try again.");
+        } finally {
+            setRefreshing(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!authLoading) {
+            fetchData();
+        }
+    }, [authLoading, fetchData]);
+
+    // Contract handlers
+    const handleViewContract = (contract: Contract) => {
+        setContractModal({
+            isOpen: true,
+            mode: "view",
+            contract,
+        });
+    };
+
+    const handleEditContract = (contract: Contract) => {
+        setContractModal({
+            isOpen: true,
+            mode: "edit",
+            contract,
+        });
+    };
+
+    const handleCreateContract = () => {
+        setContractModal({
+            isOpen: true,
+            mode: "create",
+            contract: null,
+        });
+    };
+
+    const handleDeleteContract = (contract: Contract) => {
+        setConfirmDialog({
+            isOpen: true,
+            title: "Delete Contract",
+            message: `Are you sure you want to delete the contract for "${contract.customerName}"? This action cannot be undone.`,
+            onConfirm: async () => {
+                setConfirmDialog((prev) => ({ ...prev, loading: true }));
+                try {
+                    // Simulate API call
+                    await new Promise((resolve) => setTimeout(resolve, 1000));
+                    setContracts((prev) => prev.filter((c) => c.id !== contract.id));
+                    setConfirmDialog((prev) => ({ ...prev, isOpen: false, loading: false }));
+                } catch (error) {
+                    console.error("Error deleting contract:", error);
+                    setConfirmDialog((prev) => ({ ...prev, loading: false }));
+                }
+            },
+            loading: false,
+        });
+    };
+
+    const handleSaveContract = async (contractData: any) => {
+        try {
+            if (contractModal.mode === "create") {
+                const newContract: Contract = {
+                    id: Date.now().toString(),
+                    ...contractData,
+                };
+                setContracts((prev) => [...prev, newContract]);
+            } else if (contractModal.mode === "edit" && contractModal.contract) {
+                setContracts((prev) =>
+                    prev.map((contract) =>
+                        contract.id === contractModal.contract!.id ? { ...contract, ...contractData } : contract
+                    )
+                );
+            }
+        } catch (error) {
+            console.error("Error saving contract:", error);
+            throw error;
+        }
+    };
+
+    const dismissError = () => setError(null);
+
+    // Filter contracts based on search term
+    const filteredContracts = contracts.filter(
+        (contract) =>
+            contract.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            contract.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            contract.phone.includes(searchTerm) ||
+            contract.deviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            contract.organization.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case "ACTIVE":
+                return (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Active
+                    </span>
+                );
+            case "EXPIRED":
+                return (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        <XCircle className="w-3 h-3 mr-1" />
+                        Expired
+                    </span>
+                );
+            case "PAUSED":
+                return (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        <AlertTriangle className="w-3 h-3 mr-1" />
+                        Paused
+                    </span>
+                );
+            default:
+                return (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        {status}
+                    </span>
+                );
+        }
+    };
+
+    const formatDateTime = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleString("en-US", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+    };
+
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
+        }).format(amount);
+    };
+
+    if (authLoading) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-2 text-gray-600">Loading...</span>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return <div className="text-red-600">You need to log in to view this page.</div>;
+    }
+
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">Contract Management</h3>
+                <p className="text-gray-700 leading-relaxed">
+                    Manage customer contracts, track their status and expiration dates.
+                </p>
+            </div>
+
+            {/* Controls */}
+            <div className="flex justify-between items-center">
+                <div className="flex items-center space-x-4">
+                    <div className="relative">
+                        <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Search contracts..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                    </div>
+                    <button className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        <Filter className="h-4 w-4 mr-2" />
+                        Filter
+                    </button>
+                    <button
+                        onClick={refreshData}
+                        disabled={refreshing}
+                        className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+                        Refresh
+                    </button>
+                </div>
+                <button
+                    onClick={handleCreateContract}
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Contract
+                </button>
+            </div>
+
+            {/* Error Display */}
+            {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                        <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 mr-2 flex-shrink-0" />
+                        <div className="flex-1">
+                            <p className="text-red-700">{error}</p>
+                        </div>
+                        <button onClick={dismissError} className="text-red-400 hover:text-red-600">
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Table */}
+            {loadingData ? (
+                <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span className="ml-2 text-gray-600">Loading contracts...</span>
+                </div>
+            ) : (
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        #
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Customer Name
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Phone
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Device Name
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Organization
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Times Marked
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Start Date
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        End Date
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Status
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {filteredContracts.map((contract, index) => (
+                                    <tr key={contract.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {index + 1}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div>
+                                                <div className="text-sm font-medium text-gray-900">
+                                                    {contract.customerName}
+                                                </div>
+                                                <div className="text-sm text-gray-500 flex items-center">
+                                                    <Mail className="h-3 w-3 mr-1" />
+                                                    {contract.email}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            <div className="flex items-center">
+                                                <Phone className="h-3 w-3 mr-1 text-gray-400" />
+                                                {contract.phone}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {contract.deviceName}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {contract.organization || "-"}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            <div className="flex items-center">
+                                                <DollarSign className="h-3 w-3 mr-1 text-gray-400" />
+                                                {formatCurrency(contract.timesMarked)}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            <div className="flex items-center">
+                                                <Calendar className="h-3 w-3 mr-1 text-gray-400" />
+                                                {formatDateTime(contract.startDate)}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            <div className="flex items-center">
+                                                <Clock className="h-3 w-3 mr-1 text-gray-400" />
+                                                {formatDateTime(contract.endDate)}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {getStatusBadge(contract.status)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <div className="flex items-center space-x-2">
+                                                <button
+                                                    onClick={() => handleViewContract(contract)}
+                                                    className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
+                                                    title="View Details"
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleEditContract(contract)}
+                                                    className="text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-50"
+                                                    title="Edit"
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteContract(contract)}
+                                                    className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Pagination */}
+                    <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                        <div className="flex-1 flex justify-between sm:hidden">
+                            <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                Previous
+                            </button>
+                            <button className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                Next
+                            </button>
+                        </div>
+                        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                            <div>
+                                <p className="text-sm text-gray-700">
+                                    Showing <span className="font-medium">1</span> to{" "}
+                                    <span className="font-medium">{filteredContracts.length}</span> of{" "}
+                                    <span className="font-medium">{filteredContracts.length}</span> results
+                                </p>
+                            </div>
+                            <div>
+                                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                                    <button className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                                        1
+                                    </button>
+                                    <select className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                        <option>20</option>
+                                        <option>50</option>
+                                        <option>100</option>
+                                    </select>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modals */}
+            <ContractModal
+                isOpen={contractModal.isOpen}
+                onClose={() => setContractModal((prev) => ({ ...prev, isOpen: false }))}
+                contract={contractModal.contract}
+                mode={contractModal.mode}
+                onSave={handleSaveContract}
+            />
+
+            <ConfirmDialog
+                isOpen={confirmDialog.isOpen}
+                onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmDialog.onConfirm}
+                title={confirmDialog.title}
+                message={confirmDialog.message}
+                loading={confirmDialog.loading}
+            />
+        </div>
+    );
+};
+
+export default ContractManagement;

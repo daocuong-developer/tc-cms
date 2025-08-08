@@ -61,6 +61,51 @@ export interface PermissionDetail {
     type: "create" | "view" | "update" | "delete" | "admin" | "write" | "read";
 }
 
+export interface CustomerDetail {
+    id: string;
+    customerName: string;
+    email: string;
+    phone: string | null;
+    deviceName: string | null;
+    organization: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ContractDetail {
+    id: string;
+    customer: CustomerDetail;
+    deviceName: string;
+    organization: string;
+    timesMarked: number;
+    startDate: string;
+    endDate: string;
+    status: "ACTIVE" | "EXPIRED" | "PAUSED";
+    create_at: string;
+    update_at: string;
+}
+
+export interface ContractCreatePayload {
+    customer_id: string; // The ID of the customer
+    deviceName: string;
+    organization: string;
+    totalAmount: number;
+    startDate: string;
+    endDate: string;
+    status: "ACTIVE" | "EXPIRED" | "PAUSED";
+}
+
+export interface SoftwareDetail {
+    id: string;
+    name: string;
+    version: string;
+    platform: string;
+    isCurrentVersion: boolean;
+    status: "ACTIVE" | "INACTIVE";
+    lastUpdated: string;
+    created_at: string;
+}
+
 const API_URL = "http://localhost:8000/api";
 
 const securityApi = axios.create({
@@ -187,6 +232,61 @@ export const securityService = {
     },
     deletePermission: async (id: string): Promise<void> => {
         await securityApi.delete(`/auth/permissions/${id}/`);
+    },
+
+    // Customer Management
+    getCustomers: async (): Promise<CustomerDetail[]> => {
+        const response = await securityApi.get<CustomerDetail[]>("/auth/customers/");
+        return response.data;
+    },
+    createCustomer: async (
+        customerData: Omit<CustomerDetail, "id" | "created_at" | "updated_at">
+    ): Promise<CustomerDetail> => {
+        const response = await securityApi.post<CustomerDetail>("/auth/customers/", customerData);
+        return response.data;
+    },
+    updateCustomer: async (id: string, customerData: Partial<CustomerDetail>): Promise<CustomerDetail> => {
+        const response = await securityApi.patch<CustomerDetail>(`/auth/customers/${id}/`, customerData);
+        return response.data;
+    },
+    deleteCustomer: async (id: string): Promise<void> => {
+        await securityApi.delete(`/auth/customers/${id}/`);
+    },
+
+    // Contract Management
+    getContracts: async (): Promise<ContractDetail[]> => {
+        const response = await securityApi.get<ContractDetail[]>("/auth/contracts/");
+        return response.data;
+    },
+    createContract: async (contractData: ContractCreatePayload): Promise<ContractDetail> => {
+        const response = await securityApi.post<ContractDetail>("/auth/contracts/", contractData);
+        return response.data;
+    },
+    updateContract: async (id: string, contractData: Partial<ContractDetail>): Promise<ContractDetail> => {
+        const response = await securityApi.patch<ContractDetail>(`/auth/contracts/${id}/`, contractData);
+        return response.data;
+    },
+    deleteContract: async (id: string): Promise<void> => {
+        await securityApi.delete(`/auth/contracts/${id}/`);
+    },
+
+    // Software Management
+    getSoftware: async (): Promise<SoftwareDetail[]> => {
+        const response = await securityApi.get<SoftwareDetail[]>("/auth/software/");
+        return response.data;
+    },
+    createSoftware: async (
+        softwareData: Omit<SoftwareDetail, "id" | "created_at" | "lastUpdated">
+    ): Promise<SoftwareDetail> => {
+        const response = await securityApi.post<SoftwareDetail>("/auth/software/", softwareData);
+        return response.data;
+    },
+    updateSoftware: async (id: string, softwareData: Partial<SoftwareDetail>): Promise<SoftwareDetail> => {
+        const response = await securityApi.patch<SoftwareDetail>(`/auth/software/${id}/`, softwareData);
+        return response.data;
+    },
+    deleteSoftware: async (id: string): Promise<void> => {
+        await securityApi.delete(`/auth/software/${id}/`);
     },
 };
 

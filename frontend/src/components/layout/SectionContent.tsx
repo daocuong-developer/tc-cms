@@ -11,6 +11,9 @@ import TechnicalConsiderations from "../../pages/TechnicalConsiderations";
 import { RolesList } from "../roles/RolesList";
 import SecurityManagement from "@/pages/SecurityManagement";
 import OrganizationManagement from "@/pages/OrganizationManagement";
+import ContractManagement from "@/pages/ContractManagement";
+import SoftwareManagement from "@/pages/SoftwareManagement";
+import CustomerManagement from "@/pages/CustomerManagement";
 
 interface SectionContentProps {
     activeSection: string;
@@ -36,6 +39,12 @@ const SectionContent: React.FC<SectionContentProps> = ({ activeSection }) => {
             return <CrossModuleRequirements />;
         case "technical":
             return <TechnicalConsiderations />;
+        case "contract-management":
+            return <ContractManagement />;
+        case "software-management":
+            return <SoftwareManagement />;
+        case "customer-management":
+            return <CustomerManagement />;
         case "role-list":
             return <RolesList />;
         case "security-management":

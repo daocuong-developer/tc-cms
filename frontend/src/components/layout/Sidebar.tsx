@@ -14,6 +14,7 @@ import {
     Activity,
     List,
     Building,
+    Monitor
 } from "lucide-react";
 
 interface SidebarProps {
@@ -33,6 +34,9 @@ const sections = [
     { id: "lookup", title: "Lookup & Search", icon: Search },
     { id: "cross-module", title: "Cross-Module Requirements", icon: FileText },
     { id: "technical", title: "Technical Considerations", icon: Database },
+    { id: "contract-management", title: "Contract Management", icon: FileText },
+    { id: "software-management", title: "Software Management", icon: Monitor },
+    { id: "customer-management", title: "Customer Management", icon: Users },
 ];
 
 const adminSections = [
