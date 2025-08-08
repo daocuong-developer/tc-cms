@@ -58,7 +58,7 @@ export interface PermissionDetail {
     codename: string;
     module: string;
     description: string;
-    type: "read" | "write" | "delete" | "admin";
+    type: "create" | "view" | "update" | "delete" | "admin" | "write" | "read";
 }
 
 const API_URL = "http://localhost:8000/api";

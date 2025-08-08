@@ -47,6 +47,9 @@ const SecurityManagement: React.FC = () => {
         return isSuperAdmin || hasPermission(permission);
     };
 
+    const isDefaultDjangoPermission = (codename: string) =>
+        ["add_", "change_", "delete_", "view_"].some((prefix) => codename.startsWith(prefix));
+
     // Modal states
     const [userModal, setUserModal] = useState<{
         isOpen: boolean;
@@ -454,14 +457,20 @@ const SecurityManagement: React.FC = () => {
     const getPermissionTypeBadge = (type: string) => {
         const baseClasses = "px-2 py-1 text-xs font-medium rounded-full";
         switch (type) {
+            case "create":
+                return `${baseClasses} bg-purple-100 text-purple-800`;
+            case "view":
+                return `${baseClasses} bg-green-100 text-green-800`;
+            case "update":
+                return `${baseClasses} bg-indigo-100 text-indigo-800`;
+            case "delete":
+                return `${baseClasses} bg-orange-100 text-orange-800`;
             case "admin":
                 return `${baseClasses} bg-red-100 text-red-800`;
             case "write":
                 return `${baseClasses} bg-blue-100 text-blue-800`;
-            case "delete":
-                return `${baseClasses} bg-orange-100 text-orange-800`;
             case "read":
-                return `${baseClasses} bg-green-100 text-green-800`;
+                return `${baseClasses} bg-teal-100 text-teal-800`;
             default:
                 return `${baseClasses} bg-gray-100 text-gray-800`;
         }
@@ -895,15 +904,6 @@ const SecurityManagement: React.FC = () => {
                         />
                     </div>
                 </div>
-                {checkPermission("add_permission") && (
-                    <button
-                        onClick={handleCreatePermission}
-                        className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                    >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Permission
-                    </button>
-                )}
             </div>
 
             {loadingData ? (
@@ -941,12 +941,22 @@ const SecurityManagement: React.FC = () => {
                                         permission.module.toLowerCase().includes(searchTerm.toLowerCase())
                                 )
                                 .map((permission) => (
-                                    <tr key={permission.id} className="hover:bg-gray-50">
+                                    <tr
+                                        key={permission.id}
+                                        className={`hover:bg-gray-50 ${
+                                            isDefaultDjangoPermission(permission.codename) ? "bg-blue-50" : ""
+                                        }`}
+                                    >
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
                                                 <Lock className="h-4 w-4 text-gray-400 mr-2" />
                                                 <span className="text-sm font-medium text-gray-900">
                                                     {permission.name}
+                                                    {isDefaultDjangoPermission(permission.codename) && (
+                                                        <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-yellow-200 text-yellow-800">
+                                                            Default
+                                                        </span>
+                                                    )}
                                                 </span>
                                             </div>
                                         </td>
@@ -979,15 +989,19 @@ const SecurityManagement: React.FC = () => {
                                                         <Edit className="h-4 w-4" />
                                                     </button>
                                                 )}
-                                                {checkPermission("delete_permission") && (
-                                                    <button
-                                                        onClick={() => handleDeletePermission(permission)}
-                                                        className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
-                                                        title="Delete permission"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
-                                                )}
+                                                {/* Chỉ cho phép xóa khi là permission thủ công (ví dụ: không phải 4 quyền mặc định của Django): */}
+                                                {checkPermission("delete_permission") &&
+                                                    !["add_", "change_", "delete_", "view_"].some((prefix) =>
+                                                        permission.codename.startsWith(prefix)
+                                                    ) && (
+                                                        <button
+                                                            onClick={() => handleDeletePermission(permission)}
+                                                            className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+                                                            title="Delete permission"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </button>
+                                                    )}
                                             </div>
                                         </td>
                                     </tr>

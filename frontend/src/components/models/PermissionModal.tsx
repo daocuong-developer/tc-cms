@@ -11,42 +11,40 @@ interface PermissionModalProps {
 }
 
 const PermissionModal: React.FC<PermissionModalProps> = ({ isOpen, onClose, permission, mode, onSave }) => {
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<PermissionDetail>({
+        id: "",
         name: "",
         codename: "",
         module: "",
         description: "",
-        type: "read" as "read" | "write" | "delete" | "admin",
+        type: "view", // default
     });
     const [loading, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const permissionTypes = [
-        { value: "read", label: "Read", color: "bg-green-100 text-green-800" },
-        { value: "write", label: "Write", color: "bg-blue-100 text-blue-800" },
+    const permissionTypes: { value: PermissionDetail["type"]; label: string; color: string }[] = [
+        { value: "create", label: "Create", color: "bg-purple-100 text-purple-800" },
+        { value: "view", label: "View", color: "bg-green-100 text-green-800" },
+        { value: "update", label: "Update", color: "bg-indigo-100 text-indigo-800" },
         { value: "delete", label: "Delete", color: "bg-orange-100 text-orange-800" },
-        { value: "change", label: "Change", color: "bg-indigo-100 text-indigo-800" },
         { value: "admin", label: "Admin", color: "bg-red-100 text-red-800" },
+        { value: "write", label: "Write", color: "bg-blue-100 text-blue-800" },
+        { value: "read", label: "Read", color: "bg-teal-100 text-teal-800" },
     ];
 
     const modules = ["auth", "documents", "reports", "settings", "users", "roles", "departments", "permissions"];
 
     useEffect(() => {
         if (permission && (mode === "edit" || mode === "view")) {
-            setFormData({
-                name: permission.name || "",
-                codename: permission.codename || "",
-                module: permission.module || "",
-                description: permission.description || "",
-                type: permission.type || "read",
-            });
+            setFormData({ ...permission });
         } else if (mode === "create") {
             setFormData({
+                id: "",
                 name: "",
                 codename: "",
                 module: "",
                 description: "",
-                type: "read",
+                type: "view",
             });
         }
         setError(null);
@@ -69,7 +67,7 @@ const PermissionModal: React.FC<PermissionModalProps> = ({ isOpen, onClose, perm
         }
     };
 
-    const getPermissionTypeBadge = (type: string) => {
+    const getPermissionTypeBadge = (type: PermissionDetail["type"]) => {
         const typeConfig = permissionTypes.find((t) => t.value === type);
         return typeConfig ? typeConfig.color : "bg-gray-100 text-gray-800";
     };
@@ -130,6 +128,7 @@ const PermissionModal: React.FC<PermissionModalProps> = ({ isOpen, onClose, perm
                             </h3>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Name */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Permission Name *
@@ -140,24 +139,29 @@ const PermissionModal: React.FC<PermissionModalProps> = ({ isOpen, onClose, perm
                                         onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                                         disabled={mode === "view"}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                        placeholder="Enter permission name"
                                         required
                                     />
                                 </div>
 
+                                {/* Codename */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">Codename *</label>
                                     <input
                                         type="text"
                                         value={formData.codename}
                                         onChange={(e) => setFormData((prev) => ({ ...prev, codename: e.target.value }))}
-                                        disabled={mode === "view"}
+                                        disabled={
+                                            mode === "view" ||
+                                            ["add_", "change_", "delete_", "view_"].some((prefix) =>
+                                                formData.codename.startsWith(prefix)
+                                            )
+                                        }
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                        placeholder="e.g., view_user, edit_document"
                                         required
                                     />
                                 </div>
 
+                                {/* Module */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">Module *</label>
                                     <select
@@ -176,6 +180,7 @@ const PermissionModal: React.FC<PermissionModalProps> = ({ isOpen, onClose, perm
                                     </select>
                                 </div>
 
+                                {/* Type */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Permission Type *
@@ -183,7 +188,10 @@ const PermissionModal: React.FC<PermissionModalProps> = ({ isOpen, onClose, perm
                                     <select
                                         value={formData.type}
                                         onChange={(e) =>
-                                            setFormData((prev) => ({ ...prev, type: e.target.value as any }))
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                type: e.target.value as PermissionDetail["type"],
+                                            }))
                                         }
                                         disabled={mode === "view"}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -209,6 +217,7 @@ const PermissionModal: React.FC<PermissionModalProps> = ({ isOpen, onClose, perm
                                 </div>
                             </div>
 
+                            {/* Description */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                                 <textarea
@@ -225,11 +234,11 @@ const PermissionModal: React.FC<PermissionModalProps> = ({ isOpen, onClose, perm
                 </div>
 
                 {/* Footer */}
-                <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end space-x-3 flex-shrink-0">
+                <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end space-x-3">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
                     >
                         <X className="h-4 w-4 mr-2" />
                         {mode === "view" ? "Close" : "Cancel"}
@@ -239,7 +248,7 @@ const PermissionModal: React.FC<PermissionModalProps> = ({ isOpen, onClose, perm
                             type="submit"
                             disabled={loading}
                             onClick={handleSubmit}
-                            className="flex items-center px-4 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-lg hover:bg-orange-700 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="flex items-center px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 disabled:opacity-50"
                         >
                             {loading ? (
                                 <>
@@ -248,17 +257,8 @@ const PermissionModal: React.FC<PermissionModalProps> = ({ isOpen, onClose, perm
                                 </>
                             ) : (
                                 <>
-                                    {mode === "create" ? (
-                                        <>
-                                            <Lock className="h-4 w-4 mr-2" />
-                                            Create Permission
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Lock className="h-4 w-4 mr-2" />
-                                            Save Changes
-                                        </>
-                                    )}
+                                    <Lock className="h-4 w-4 mr-2" />
+                                    {mode === "create" ? "Create Permission" : "Save Changes"}
                                 </>
                             )}
                         </button>
