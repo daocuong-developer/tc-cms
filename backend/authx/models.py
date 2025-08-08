@@ -1,6 +1,8 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+
 
 # --- Organization Model ---
 class Organization(models.Model):
@@ -177,7 +179,22 @@ class Customer(models.Model):
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     deviceName = models.CharField(max_length=255, blank=True, null=True)
-    organization = models.CharField(max_length=255, blank=True, null=True)
+    
+    department = models.ForeignKey(
+        'Department',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='customers'
+    )
+    group = models.ForeignKey(
+        'Group',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='customers'
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -189,6 +206,14 @@ class Customer(models.Model):
     def __str__(self):
         return self.customerName
     
+    def clean(self):
+        # 1. Khách hàng phải thuộc Department HOẶC Group, không thể cả hai hoặc cả hai đều trống
+        if self.department and self.group:
+            raise ValidationError("A customer cannot belong to both a Department and a Group.")
+        
+        if not self.department and not self.group:
+            raise ValidationError("A customer must belong to either a Department or a Group.")
+        
 # --- Contract Model ---
 class Contract(models.Model):
     customer = models.ForeignKey(

@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate, get_user_model
 from .models import Permission, Role, Organization, Department, Group, Contract, Software, Customer
 from django.db.models import Count
-from .models import Permission
+from rest_framework.validators import ValidationError
 
 User = get_user_model()
 
@@ -21,6 +21,12 @@ class DepartmentSerializer(serializers.ModelSerializer):
         model = Department
         fields = '__all__'
 
+class DepartmentNestedSerializer(serializers.ModelSerializer):
+    organization = serializers.CharField(source='organization.name', read_only=True)
+    class Meta:
+        model = Department
+        fields = ['id', 'name', 'organization']
+
 class GroupSerializer(serializers.ModelSerializer):
     organization = OrganizationSerializer(read_only=True)
     organization_id = serializers.PrimaryKeyRelatedField(
@@ -30,6 +36,12 @@ class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = ['id', 'name', 'description', 'organization', 'organization_id']
+
+class GroupNestedSerializer(serializers.ModelSerializer):
+    organization = serializers.CharField(source='organization.name', read_only=True)
+    class Meta:
+        model = Group
+        fields = ['id', 'name', 'organization']
 
 class PermissionSerializer(serializers.ModelSerializer):
     is_default = serializers.SerializerMethodField()
@@ -61,9 +73,43 @@ class RoleSerializer(serializers.ModelSerializer):
         return obj.users.count()
 
 class CustomerSerializer(serializers.ModelSerializer):
+    department = DepartmentNestedSerializer(read_only=True)
+    group = GroupNestedSerializer(read_only=True)
+    
+    department_id = serializers.PrimaryKeyRelatedField(
+        queryset=Department.objects.all(), source='department', write_only=True, required=False, allow_null=True
+    )
+    group_id = serializers.PrimaryKeyRelatedField(
+        queryset=Group.objects.all(), source='group', write_only=True, required=False, allow_null=True
+    )
+
+    organization = serializers.SerializerMethodField()
+
     class Meta:
         model = Customer
-        fields = '__all__'
+        fields = ['id', 'customerName', 'email', 'phone', 'deviceName', 
+                  'department', 'department_id', 'group', 'group_id', 'organization']
+    
+    def validate(self, data):
+        department = data.get('department')
+        group = data.get('group')
+        
+        # Kiểm tra nếu cả hai trường đều được điền
+        if department and group:
+            raise ValidationError("A customer cannot belong to both a Department and a Group simultaneously.")
+
+        # Kiểm tra nếu cả hai trường đều trống
+        if not department and not group:
+            raise ValidationError("A customer must belong to either a Department or a Group.")
+            
+        return data
+    
+    def get_organization(self, obj):
+        if obj.department and obj.department.organization:
+            return obj.department.organization.name
+        if obj.group and obj.group.organization:
+            return obj.group.organization.name
+        return None
 
 class ContractSerializer(serializers.ModelSerializer):
     customer = CustomerSerializer(read_only=True)

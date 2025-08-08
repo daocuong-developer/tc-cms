@@ -7,7 +7,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import get_user_model
 from datetime import datetime, timezone
 from django.contrib.auth.models import update_last_login
-
+from django.db import models 
 from .serializers import (
     RegisterSerializer, LoginSerializer, UserSerializer,
     OrganizationSerializer, DepartmentSerializer,
@@ -144,13 +144,28 @@ class DepartmentViewSet(viewsets.ModelViewSet):
         return Department.objects.none()
 
 class CustomerViewSet(viewsets.ModelViewSet):
-    queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        user = self.request.user
+        
+        if user.is_superuser or user.has_perm('authx.view_all_customers'):
+            return Customer.objects.all().select_related('department', 'group')
+
+        if user.organization:
+            user_departments = user.organization.departments.all()
+            user_groups = user.organization.groups.all()
+            
+            return Customer.objects.filter(
+                models.Q(department__in=user_departments) | models.Q(group__in=user_groups)
+            ).distinct().select_related('department', 'group')
+        
+        return Customer.objects.none()
+
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsAdminUser()]
+            return [IsAdminUser()] 
         return [IsAuthenticated()]
     
 class ContractViewSet(viewsets.ModelViewSet):

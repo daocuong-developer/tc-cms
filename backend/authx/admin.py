@@ -72,13 +72,28 @@ class DepartmentAdmin(admin.ModelAdmin):
     list_filter = ('organization',)
     ordering = ('organization__name', 'name')
 
-# Registers the Customer model
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ('customerName', 'email', 'phone', 'deviceName', 'organization', 'created_at')
+    list_display = (
+        'customerName', 'email', 'phone', 'deviceName', 
+        'get_organization_name',
+        'created_at'
+    )
     search_fields = ('customerName', 'email', 'phone')
     ordering = ('customerName',)
-    list_filter = ('organization',)
+    list_filter = (
+        'department__organization', 
+        'group__organization',     
+    )
+
+    def get_organization_name(self, obj):
+        if obj.department and obj.department.organization:
+            return obj.department.organization.name
+        if obj.group and obj.group.organization:
+            return obj.group.organization.name
+        return "N/A"
+    
+    get_organization_name.short_description = 'Organization' 
 
 # Registers the Contract model
 @admin.register(Contract)
