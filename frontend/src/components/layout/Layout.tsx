@@ -32,7 +32,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeSection, setActiveSecti
           )}
         </div>
         <main className="flex-1 p-6 overflow-y-auto">
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-7xl mx-auto">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
               {children}
             </div>

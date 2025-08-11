@@ -1,3 +1,4 @@
+import ContentHeader from "@components/common/ContentHeader";
 import React, { useState, useEffect, useCallback } from "react";
 import {
     Users,
@@ -1036,7 +1037,7 @@ const SecurityManagement: React.FC = () => {
     return (
         <div className="space-y-6">
             {/* Header with Super Admin indicator */}
-            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-lg p-6">
+            {/* <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-lg p-6">
                 <div className="flex items-center justify-between">
                     <div>
                         <h3 className="text-xl font-semibold text-gray-900 mb-3 flex items-center">
@@ -1054,7 +1055,13 @@ const SecurityManagement: React.FC = () => {
                         </p>
                     </div>
                 </div>
-            </div>
+            </div> */}
+            <ContentHeader
+                title="Security Management"
+                isSuperAdmin={true}
+                description="Manage users, roles, departments, and permissions to ensure proper access control and security across the document management system."
+                storageKey="securityManagementHeaderClosed"
+            />
 
             {/* Tab Navigation */}
             <div className="border-b border-gray-200">

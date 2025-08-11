@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import ContentHeader from "@components/common/ContentHeader";
 import {
     Users,
     Plus,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 import { CustomerDetail, securityService } from "@services/securityApi";
 import CustomerModel from "@components/models/CustomerModel";
+import ConfirmDialog from "@components/models/ConfirmDialog";
 
 const CustomerManagement: React.FC = () => {
     const [customers, setCustomers] = useState<CustomerDetail[]>([]);
@@ -28,6 +30,15 @@ const CustomerManagement: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetail | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [deleteDialog, setDeleteDialog] = useState<{
+        isOpen: boolean;
+        customer: CustomerDetail | null;
+        isDeleting: boolean;
+    }>({
+        isOpen: false,
+        customer: null,
+        isDeleting: false,
+    });
     const [showFilters, setShowFilters] = useState(false);
     const [filters, setFilters] = useState({
         hasPhone: "",
@@ -85,16 +96,33 @@ const CustomerManagement: React.FC = () => {
         setIsModalOpen(true);
     };
 
-    const handleDeleteCustomer = async (customer: CustomerDetail) => {
-        if (window.confirm(`Are you sure you want to delete customer "${customer.customerName}"?`)) {
-            try {
-                await securityService.deleteCustomer(customer.id);
-                await fetchCustomers();
-                showNotification("success", "Customer deleted successfully");
-            } catch (error) {
-                console.error("Error deleting customer:", error);
-                showNotification("error", "Failed to delete customer");
-            }
+    const handleDeleteCustomer = (customer: CustomerDetail) => {
+        setDeleteDialog({
+            isOpen: true,
+            customer,
+            isDeleting: false,
+        });
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteDialog.customer) return;
+
+        try {
+            setDeleteDialog((prev) => ({ ...prev, isDeleting: true }));
+            await securityService.deleteCustomer(deleteDialog.customer.id);
+            await fetchCustomers();
+            showNotification("success", "Customer deleted successfully");
+            setDeleteDialog({ isOpen: false, customer: null, isDeleting: false });
+        } catch (error) {
+            console.error("Error deleting customer:", error);
+            showNotification("error", "Failed to delete customer");
+            setDeleteDialog((prev) => ({ ...prev, isDeleting: false }));
+        }
+    };
+
+    const handleCloseDeleteDialog = () => {
+        if (!deleteDialog.isDeleting) {
+            setDeleteDialog({ isOpen: false, customer: null, isDeleting: false });
         }
     };
 
@@ -194,68 +222,50 @@ const CustomerManagement: React.FC = () => {
             )}
 
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-8">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="p-4 bg-blue-100 rounded-2xl">
-                            <Users className="w-8 h-8 text-blue-600" />
-                        </div>
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-900">Customer Management</h1>
-                            <p className="text-gray-600 mt-2">Manage customer information in the system</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={handleAddCustomer}
-                        className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl"
-                    >
-                        <Plus className="w-5 h-5" />
-                        Add Customer
-                    </button>
-                </div>
-            </div>
+<ContentHeader
+    title="Customer Management"
+    description="Manage customer information in the system"
+    storageKey="customerManagementHeaderClosed"
+/>
 
-            {/* Search and Controls */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-                    {/* Search */}
-                    <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search customers..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-300 transition-all"
-                        />
-                    </div>
+{/* Controls */}
+<div className="flex justify-between items-center">
+    <div className="flex items-center space-x-4">
+        <div className="relative">
+            <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+                type="text"
+                placeholder="Search customers..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+        </div>
+        <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+        >
+            <Filter className="h-4 w-4 mr-2" />
+            Filter
+        </button>
+        <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+        >
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+            Refresh
+        </button>
+    </div>
+    <button
+        onClick={handleAddCustomer}
+        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+    >
+        <Plus className="h-4 w-4 mr-2" />
+        Add Customer
+    </button>
+</div>
 
-                    {/* Controls */}
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => setShowFilters(!showFilters)}
-                            className={`flex items-center gap-2 px-4 py-3 rounded-xl font-medium transition-all ${
-                                showFilters
-                                    ? "bg-blue-100 text-blue-700 border-2 border-blue-200"
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200 border-2 border-transparent"
-                            }`}
-                        >
-                            <Filter className="w-4 h-4" />
-                            Filters
-                            <ChevronDown
-                                className={`w-4 h-4 transition-transform ${showFilters ? "rotate-180" : ""}`}
-                            />
-                        </button>
-                        <button
-                            onClick={handleRefresh}
-                            disabled={refreshing}
-                            className="flex items-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all disabled:opacity-50"
-                        >
-                            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-                            Refresh
-                        </button>
-                    </div>
-                </div>
 
                 {/* Filters */}
                 {showFilters && (
@@ -325,7 +335,7 @@ const CustomerManagement: React.FC = () => {
                         <span className="text-blue-600">Filters active</span>
                     )}
                 </div>
-            </div>
+            {/* </div> */}
 
             {/* Customer Table */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -458,6 +468,19 @@ const CustomerManagement: React.FC = () => {
                 customer={selectedCustomer}
                 onSave={handleSaveCustomer}
                 isLoading={isSubmitting}
+            />
+
+            {/* Delete Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={deleteDialog.isOpen}
+                onClose={handleCloseDeleteDialog}
+                onConfirm={handleConfirmDelete}
+                title="Delete Customer"
+                message={`Are you sure you want to delete customer "${deleteDialog.customer?.customerName}"? This action cannot be undone.`}
+                confirmText="Delete Customer"
+                cancelText="Cancel"
+                type="danger"
+                loading={deleteDialog.isDeleting}
             />
         </div>
     );

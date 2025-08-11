@@ -3,7 +3,8 @@ import Cookies from "js-cookie";
 import type { AuthResponse, LoginCredentials, RegisterData, User } from "../types/auth.types";
 import { getAuthContext } from "./authContextHelper";
 
-const API_URL = "http://localhost:8000/api";
+const API_URL = import.meta.env.VITE_API_URL;
+console.log("API_URL dùng:", API_URL);
 
 const api = axios.create({
     baseURL: API_URL,

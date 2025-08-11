@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import ContentHeader from "@/components/common/ContentHeader";
 import {
     Building,
     Building2,
@@ -333,7 +334,7 @@ const OrganizationManagement: React.FC = () => {
                 {hasPermission("add_organization") && (
                     <button
                         onClick={handleCreateOrganization}
-                        className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
                         <Plus className="h-4 w-4 mr-2" />
                         Add Organization
@@ -445,7 +446,7 @@ const OrganizationManagement: React.FC = () => {
                 {hasPermission("add_department") && (
                     <button
                         onClick={handleCreateDepartment}
-                        className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
                         <Plus className="h-4 w-4 mr-2" />
                         Add Department
@@ -564,13 +565,18 @@ const OrganizationManagement: React.FC = () => {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-6">
+            {/* <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-6">
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">Organization Management</h3>
                 <p className="text-gray-700 leading-relaxed">
                     Manage organizations and departments to structure your company hierarchy and organize users
                     effectively.
                 </p>
-            </div>
+            </div> */}
+            <ContentHeader
+                title="Organization Management"
+                description="Manage organizations and departments to structure your company hierarchy and organize users effectively."
+                storageKey="organizationManagementHeaderClosed"
+            />
 
             {/* Tab Navigation */}
             <div className="border-b border-gray-200">

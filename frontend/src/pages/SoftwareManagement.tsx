@@ -1,3 +1,89 @@
+    // Mock data
+    // const mockSoftware: Software[] = [
+    //     {
+    //         id: "1",
+    //         name: "VS Code",
+    //         version: "19.5.1",
+    //         platform: "iOS",
+    //         isCurrentVersion: true,
+    //         status: "Active",
+    //         lastUpdated: "2025-07-01T00:00:00Z",
+    //     },
+    //     {
+    //         id: "2",
+    //         name: "A-MarkAI",
+    //         version: "1.2.8",
+    //         platform: "Desktop",
+    //         isCurrentVersion: true,
+    //         status: "Active",
+    //         lastUpdated: "2025-03-24T00:00:00Z",
+    //     },
+    //     {
+    //         id: "3",
+    //         name: "System Monitor",
+    //         version: "4.4.4",
+    //         platform: "Desktop",
+    //         isCurrentVersion: false,
+    //         status: "Inactive",
+    //         lastUpdated: "2025-07-07T00:00:00Z",
+    //     },
+    //     {
+    //         id: "4",
+    //         name: "VS Code",
+    //         version: "19.5.1",
+    //         platform: "iOS",
+    //         isCurrentVersion: false,
+    //         status: "Active",
+    //         lastUpdated: "2025-07-01T00:00:00Z",
+    //     },
+    //     {
+    //         id: "5",
+    //         name: "Code Editor Pro",
+    //         version: "2.1.3",
+    //         platform: "Android",
+    //         isCurrentVersion: false,
+    //         status: "Active",
+    //         lastUpdated: "2025-07-01T00:00:00Z",
+    //     },
+    //     {
+    //         id: "6",
+    //         name: "Development Tools",
+    //         version: "3.2.1",
+    //         platform: "Web",
+    //         isCurrentVersion: false,
+    //         status: "Active",
+    //         lastUpdated: "2025-07-01T00:00:00Z",
+    //     },
+    //     {
+    //         id: "7",
+    //         name: "Test Suite",
+    //         version: "12",
+    //         platform: "iOS",
+    //         isCurrentVersion: false,
+    //         status: "Active",
+    //         lastUpdated: "2025-03-26T00:00:00Z",
+    //     },
+    //     {
+    //         id: "8",
+    //         name: "Quality Assurance",
+    //         version: "1.5.2",
+    //         platform: "Desktop",
+    //         isCurrentVersion: false,
+    //         status: "Active",
+    //         lastUpdated: "2025-03-26T00:00:00Z",
+    //     },
+    //     {
+    //         id: "9",
+    //         name: "AutoMark",
+    //         version: "1.0.0",
+    //         platform: "Desktop",
+    //         isCurrentVersion: false,
+    //         status: "Active",
+    //         lastUpdated: "2025-03-06T00:00:00Z",
+    //     },
+    // ];
+
+import ContentHeader from "@/components/common/ContentHeader";
 import React, { useState, useEffect, useCallback } from "react";
 import {
     Monitor,
@@ -19,23 +105,14 @@ import {
     Laptop,
 } from "lucide-react";
 import { useAuth } from "@contexts/AuthContext";
+import { securityService, SoftwareDetail } from "@services/securityApi";
 import SoftwareModal from "@components/models/SoftwareModal";
 import ConfirmDialog from "@components/models/ConfirmDialog";
-
-interface Software {
-    id: string;
-    name: string;
-    version: string;
-    platform: "iOS" | "Desktop" | "Android" | "Web";
-    isCurrentVersion: boolean;
-    status: "Active" | "Inactive" | "Expired";
-    lastUpdated: string;
-}
 
 const SoftwareManagement: React.FC = () => {
     const { user, hasPermission, isLoading: authLoading } = useAuth();
     const [searchTerm, setSearchTerm] = useState("");
-    const [software, setSoftware] = useState<Software[]>([]);
+    const [software, setSoftware] = useState<SoftwareDetail[]>([]);
     const [loadingData, setLoadingData] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -44,7 +121,7 @@ const SoftwareManagement: React.FC = () => {
     const [softwareModal, setSoftwareModal] = useState<{
         isOpen: boolean;
         mode: "view" | "edit" | "create";
-        software: Software | null;
+        software: SoftwareDetail | null;
     }>({
         isOpen: false,
         mode: "create",
@@ -65,98 +142,12 @@ const SoftwareManagement: React.FC = () => {
         loading: false,
     });
 
-    // Mock data
-    const mockSoftware: Software[] = [
-        {
-            id: "1",
-            name: "VS Code",
-            version: "19.5.1",
-            platform: "iOS",
-            isCurrentVersion: true,
-            status: "Active",
-            lastUpdated: "2025-07-01T00:00:00Z",
-        },
-        {
-            id: "2",
-            name: "A-MarkAI",
-            version: "1.2.8",
-            platform: "Desktop",
-            isCurrentVersion: true,
-            status: "Active",
-            lastUpdated: "2025-03-24T00:00:00Z",
-        },
-        {
-            id: "3",
-            name: "System Monitor",
-            version: "4.4.4",
-            platform: "Desktop",
-            isCurrentVersion: false,
-            status: "Inactive",
-            lastUpdated: "2025-07-07T00:00:00Z",
-        },
-        {
-            id: "4",
-            name: "VS Code",
-            version: "19.5.1",
-            platform: "iOS",
-            isCurrentVersion: false,
-            status: "Active",
-            lastUpdated: "2025-07-01T00:00:00Z",
-        },
-        {
-            id: "5",
-            name: "Code Editor Pro",
-            version: "2.1.3",
-            platform: "Android",
-            isCurrentVersion: false,
-            status: "Active",
-            lastUpdated: "2025-07-01T00:00:00Z",
-        },
-        {
-            id: "6",
-            name: "Development Tools",
-            version: "3.2.1",
-            platform: "Web",
-            isCurrentVersion: false,
-            status: "Active",
-            lastUpdated: "2025-07-01T00:00:00Z",
-        },
-        {
-            id: "7",
-            name: "Test Suite",
-            version: "12",
-            platform: "iOS",
-            isCurrentVersion: false,
-            status: "Active",
-            lastUpdated: "2025-03-26T00:00:00Z",
-        },
-        {
-            id: "8",
-            name: "Quality Assurance",
-            version: "1.5.2",
-            platform: "Desktop",
-            isCurrentVersion: false,
-            status: "Active",
-            lastUpdated: "2025-03-26T00:00:00Z",
-        },
-        {
-            id: "9",
-            name: "AutoMark",
-            version: "1.0.0",
-            platform: "Desktop",
-            isCurrentVersion: false,
-            status: "Active",
-            lastUpdated: "2025-03-06T00:00:00Z",
-        },
-    ];
-
     const fetchData = useCallback(async () => {
         setLoadingData(true);
         setError(null);
         try {
-            // Simulate API call
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            setSoftware(mockSoftware);
+            const softwareData = await securityService.getSoftware();
+            setSoftware(softwareData);
         } catch (err) {
             console.error("Failed to fetch software:", err);
             setError("Failed to load software. Please try again.");
@@ -168,8 +159,8 @@ const SoftwareManagement: React.FC = () => {
     const refreshData = useCallback(async () => {
         setRefreshing(true);
         try {
-            await new Promise((resolve) => setTimeout(resolve, 500));
-            setSoftware(mockSoftware);
+            const softwareData = await securityService.getSoftware();
+            setSoftware(softwareData);
         } catch (err) {
             console.error("Failed to refresh software:", err);
             setError("Failed to refresh software. Please try again.");
@@ -185,7 +176,7 @@ const SoftwareManagement: React.FC = () => {
     }, [authLoading, fetchData]);
 
     // Software handlers
-    const handleViewSoftware = (software: Software) => {
+    const handleViewSoftware = (software: SoftwareDetail) => {
         setSoftwareModal({
             isOpen: true,
             mode: "view",
@@ -193,7 +184,7 @@ const SoftwareManagement: React.FC = () => {
         });
     };
 
-    const handleEditSoftware = (software: Software) => {
+    const handleEditSoftware = (software: SoftwareDetail) => {
         setSoftwareModal({
             isOpen: true,
             mode: "edit",
@@ -209,7 +200,7 @@ const SoftwareManagement: React.FC = () => {
         });
     };
 
-    const handleDeleteSoftware = (software: Software) => {
+    const handleDeleteSoftware = (software: SoftwareDetail) => {
         setConfirmDialog({
             isOpen: true,
             title: "Delete Software",
@@ -217,8 +208,7 @@ const SoftwareManagement: React.FC = () => {
             onConfirm: async () => {
                 setConfirmDialog((prev) => ({ ...prev, loading: true }));
                 try {
-                    // Simulate API call
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
+                    await securityService.deleteSoftware(software.id);
                     setSoftware((prev) => prev.filter((s) => s.id !== software.id));
                     setConfirmDialog((prev) => ({ ...prev, isOpen: false, loading: false }));
                 } catch (error) {
@@ -233,15 +223,11 @@ const SoftwareManagement: React.FC = () => {
     const handleSaveSoftware = async (softwareData: any) => {
         try {
             if (softwareModal.mode === "create") {
-                const newSoftware: Software = {
-                    id: Date.now().toString(),
-                    ...softwareData,
-                };
+                const newSoftware = await securityService.createSoftware(softwareData);
                 setSoftware((prev) => [...prev, newSoftware]);
             } else if (softwareModal.mode === "edit" && softwareModal.software) {
-                setSoftware((prev) =>
-                    prev.map((s) => (s.id === softwareModal.software!.id ? { ...s, ...softwareData } : s))
-                );
+                const updatedSoftware = await securityService.updateSoftware(softwareModal.software.id, softwareData);
+                setSoftware((prev) => prev.map((s) => (s.id === softwareModal.software!.id ? updatedSoftware : s)));
             }
         } catch (error) {
             console.error("Error saving software:", error);
@@ -261,25 +247,18 @@ const SoftwareManagement: React.FC = () => {
 
     const getStatusBadge = (status: string) => {
         switch (status) {
-            case "Active":
+            case "ACTIVE":
                 return (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         <CheckCircle className="w-3 h-3 mr-1" />
                         Active
                     </span>
                 );
-            case "Inactive":
+            case "INACTIVE":
                 return (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                         <AlertTriangle className="w-3 h-3 mr-1" />
                         Inactive
-                    </span>
-                );
-            case "Expired":
-                return (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        <XCircle className="w-3 h-3 mr-1" />
-                        Expired
                     </span>
                 );
             default:
@@ -331,12 +310,17 @@ const SoftwareManagement: React.FC = () => {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-6">
+            {/* <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-6">
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">Software Management</h3>
                 <p className="text-gray-700 leading-relaxed">
                     Manage software information, versions and activation status in the system.
                 </p>
-            </div>
+            </div> */}
+            <ContentHeader
+                title="Software Management"
+                description="Manage software information, versions and activation status in the system."
+                storageKey="softwareManagementHeaderClosed"
+            />
 
             {/* Controls */}
             <div className="flex justify-between items-center">
@@ -366,7 +350,7 @@ const SoftwareManagement: React.FC = () => {
                 </div>
                 <button
                     onClick={handleCreateSoftware}
-                    className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Software
