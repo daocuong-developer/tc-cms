@@ -78,7 +78,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </button>
             </div>
         </div>
-        <nav className="flex-1 p-4 flex flex-col">
+        <nav className="flex-1 p-4 flex flex-col max-h-screen overflow-y-auto">
             <div className="space-y-1">
                 {!collapsed && (
                     <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">

@@ -1,34 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { X, FileText, User, Mail, Phone, Building, DollarSign, Calendar, Save, AlertCircle } from "lucide-react";
-
-interface Contract {
-    id: string;
-    customerName: string;
-    email: string;
-    phone: string;
-    deviceName: string;
-    organization: string;
-    totalAmount: number;
-    startDate: string;
-    endDate: string;
-    status: "ACTIVE" | "EXPIRED" | "PAUSED";
-}
+import { ContractDetail, CustomerDetail, securityService } from "@services/securityApi";
 
 interface ContractModalProps {
     isOpen: boolean;
     onClose: () => void;
-    contract?: Contract | null;
+    contract?: ContractDetail | null;
     mode: "view" | "edit" | "create";
     onSave: (contractData: any) => Promise<void>;
 }
 
 const ContractModal: React.FC<ContractModalProps> = ({ isOpen, onClose, contract, mode, onSave }) => {
     const [formData, setFormData] = useState({
-        customerName: "",
-        email: "",
-        phone: "",
-        deviceName: "",
-        organization: "",
+        customer_id: "",
         totalAmount: 0,
         startDate: "",
         endDate: "",
@@ -37,58 +21,62 @@ const ContractModal: React.FC<ContractModalProps> = ({ isOpen, onClose, contract
     const [loading, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [customers, setCustomers] = useState<CustomerDetail[]>([]);
+    const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetail | null>(null);
 
     useEffect(() => {
+        // Fetch customers for dropdown
+        const fetchCustomers = async () => {
+            try {
+                const customersData = await securityService.getCustomers();
+                setCustomers(customersData);
+            } catch (err) {
+                console.error("Failed to fetch customers:", err);
+            }
+        };
+
+        if (isOpen) {
+            fetchCustomers();
+        }
+
         if (contract && (mode === "edit" || mode === "view")) {
             setFormData({
-                customerName: contract.customerName || "",
-                email: contract.email || "",
-                phone: contract.phone || "",
-                deviceName: contract.deviceName || "",
-                organization: contract.organization || "",
-                totalAmount: contract.totalAmount || 0,
+                customer_id: contract.customer.id || "",
+                totalAmount: contract.timesMarked || 0,
                 startDate: contract.startDate ? new Date(contract.startDate).toISOString().slice(0, 16) : "",
                 endDate: contract.endDate ? new Date(contract.endDate).toISOString().slice(0, 16) : "",
                 status: contract.status || "ACTIVE",
             });
+            setSelectedCustomer(contract.customer);
         } else if (mode === "create") {
             setFormData({
-                customerName: "",
-                email: "",
-                phone: "",
-                deviceName: "",
-                organization: "",
+                customer_id: "",
                 totalAmount: 0,
                 startDate: "",
                 endDate: "",
                 status: "ACTIVE",
             });
+            setSelectedCustomer(null);
         }
         setError(null);
         setErrors({});
     }, [contract, mode, isOpen]);
 
+    // Update selected customer when customer_id changes
+    useEffect(() => {
+        if (formData.customer_id && customers.length > 0) {
+            const customer = customers.find((c) => c.id === formData.customer_id);
+            setSelectedCustomer(customer || null);
+        } else {
+            setSelectedCustomer(null);
+        }
+    }, [formData.customer_id, customers]);
+
     const validateForm = () => {
         const newErrors: Record<string, string> = {};
 
-        if (!formData.customerName.trim()) {
-            newErrors.customerName = "Customer name is required";
-        }
-
-        if (!formData.email.trim()) {
-            newErrors.email = "Email is required";
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-            newErrors.email = "Email is invalid";
-        }
-
-        if (!formData.phone.trim()) {
-            newErrors.phone = "Phone number is required";
-        } else if (!/^[\d\s\-\+\(\)]+$/.test(formData.phone)) {
-            newErrors.phone = "Phone number is invalid";
-        }
-
-        if (!formData.deviceName.trim()) {
-            newErrors.deviceName = "Device name is required";
+        if (!formData.customer_id) {
+            newErrors.customer_id = "Customer is required";
         }
 
         if (!formData.startDate) {
@@ -118,9 +106,13 @@ const ContractModal: React.FC<ContractModalProps> = ({ isOpen, onClose, contract
 
         try {
             const dataToSave = {
-                ...formData,
+                customer_id: formData.customer_id,
+                deviceName: selectedCustomer?.deviceName || "",
+                organization: selectedCustomer?.organization || "",
+                totalAmount: formData.totalAmount,
                 startDate: new Date(formData.startDate).toISOString(),
                 endDate: new Date(formData.endDate).toISOString(),
+                status: formData.status,
             };
             await onSave(dataToSave);
             onClose();
@@ -131,6 +123,17 @@ const ContractModal: React.FC<ContractModalProps> = ({ isOpen, onClose, contract
         }
     };
 
+    const formatDateTime = (dateString: string) => {
+        if (!dateString) return "";
+        const date = new Date(dateString);
+        return date.toLocaleString("en-US", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+    };
 
     if (!isOpen) return null;
 
@@ -197,94 +200,110 @@ const ContractModal: React.FC<ContractModalProps> = ({ isOpen, onClose, contract
                         )}
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Customer Information */}
+                            {/* Customer Selection */}
                             <div className="lg:col-span-2">
                                 <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                                     <User className="h-5 w-5 mr-2 text-gray-400" />
-                                    Customer Information
+                                    Customer Selection
                                 </h3>
                                 <div className="bg-gray-50 rounded-lg p-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Customer Name *
+                                                <User className="h-4 w-4 inline mr-1" />
+                                                Customer *
                                             </label>
-                                            <input
-                                                type="text"
-                                                value={formData.customerName}
-                                                onChange={(e) =>
-                                                    setFormData({ ...formData, customerName: e.target.value })
-                                                }
-                                                disabled={isReadOnly}
-                                                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-600 ${
-                                                    errors.customerName ? "border-red-300" : "border-gray-300"
-                                                }`}
-                                                placeholder="Enter customer name"
-                                            />
-                                            {errors.customerName && (
-                                                <p className="mt-1 text-sm text-red-600">{errors.customerName}</p>
+                                            {mode === "view" && contract ? (
+                                                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600">
+                                                    {contract.customer.customerName} ({contract.customer.email})
+                                                </div>
+                                            ) : (
+                                                <select
+                                                    value={formData.customer_id}
+                                                    onChange={(e) =>
+                                                        setFormData({ ...formData, customer_id: e.target.value })
+                                                    }
+                                                    disabled={isReadOnly}
+                                                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-600 ${
+                                                        errors.customer_id ? "border-red-300" : "border-gray-300"
+                                                    }`}
+                                                >
+                                                    <option value="">Select a customer</option>
+                                                    {customers.map((customer) => (
+                                                        <option key={customer.id} value={customer.id}>
+                                                            {customer.customerName} ({customer.email})
+                                                        </option>
+                                                    ))}
+                                                </select>
                                             )}
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                <Mail className="h-4 w-4 inline mr-1" />
-                                                Email *
-                                            </label>
-                                            <input
-                                                type="email"
-                                                value={formData.email}
-                                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                                disabled={isReadOnly}
-                                                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-600 ${
-                                                    errors.email ? "border-red-300" : "border-gray-300"
-                                                }`}
-                                                placeholder="Enter email address"
-                                            />
-                                            {errors.email && (
-                                                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                                            {errors.customer_id && (
+                                                <p className="mt-1 text-sm text-red-600">{errors.customer_id}</p>
                                             )}
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                <Phone className="h-4 w-4 inline mr-1" />
-                                                Phone Number *
-                                            </label>
-                                            <input
-                                                type="tel"
-                                                value={formData.phone}
-                                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                                disabled={isReadOnly}
-                                                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-600 ${
-                                                    errors.phone ? "border-red-300" : "border-gray-300"
-                                                }`}
-                                                placeholder="Enter phone number"
-                                            />
-                                            {errors.phone && (
-                                                <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                <Building className="h-4 w-4 inline mr-1" />
-                                                Organization
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={formData.organization}
-                                                onChange={(e) =>
-                                                    setFormData({ ...formData, organization: e.target.value })
-                                                }
-                                                disabled={isReadOnly}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-600"
-                                                placeholder="Enter organization name"
-                                            />
                                         </div>
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Customer Information Display */}
+                            {selectedCustomer && (
+                                <div className="lg:col-span-2">
+                                    <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                                        <FileText className="h-5 w-5 mr-2 text-gray-400" />
+                                        Customer Information
+                                    </h3>
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Device Name
+                                                </label>
+                                                <div className="flex items-center text-sm text-gray-900 bg-white px-3 py-2 rounded border">
+                                                    {selectedCustomer.deviceName || (
+                                                        <span className="text-red-500 italic">No device name</span>
+                                                    )}
+                                                </div>
+                                                {errors.deviceName && (
+                                                    <p className="mt-1 text-sm text-red-600">{errors.deviceName}</p>
+                                                )}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    <Building className="h-4 w-4 inline mr-1" />
+                                                    Organization
+                                                </label>
+                                                <div className="flex items-center text-sm text-gray-900 bg-white px-3 py-2 rounded border">
+                                                    {selectedCustomer.organization || (
+                                                        <span className="text-gray-400 italic">No organization</span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    <Mail className="h-4 w-4 inline mr-1" />
+                                                    Email
+                                                </label>
+                                                <div className="flex items-center text-sm text-gray-900 bg-white px-3 py-2 rounded border">
+                                                    {selectedCustomer.email}
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    <Phone className="h-4 w-4 inline mr-1" />
+                                                    Phone
+                                                </label>
+                                                <div className="flex items-center text-sm text-gray-900 bg-white px-3 py-2 rounded border">
+                                                    {selectedCustomer.phone || (
+                                                        <span className="text-gray-400 italic">No phone</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Contract Information */}
                             <div className="lg:col-span-2">
@@ -296,29 +315,8 @@ const ContractModal: React.FC<ContractModalProps> = ({ isOpen, onClose, contract
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Device Name *
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={formData.deviceName}
-                                                onChange={(e) =>
-                                                    setFormData({ ...formData, deviceName: e.target.value })
-                                                }
-                                                disabled={isReadOnly}
-                                                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-600 ${
-                                                    errors.deviceName ? "border-red-300" : "border-gray-300"
-                                                }`}
-                                                placeholder="Enter device name"
-                                            />
-                                            {errors.deviceName && (
-                                                <p className="mt-1 text-sm text-red-600">{errors.deviceName}</p>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
                                                 <DollarSign className="h-4 w-4 inline mr-1" />
-                                                Total Amount
+                                                Times Marked
                                             </label>
                                             <input
                                                 type="number"
@@ -331,6 +329,24 @@ const ContractModal: React.FC<ContractModalProps> = ({ isOpen, onClose, contract
                                                 placeholder="0"
                                                 min="0"
                                             />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Status
+                                            </label>
+                                            <select
+                                                value={formData.status}
+                                                onChange={(e) =>
+                                                    setFormData({ ...formData, status: e.target.value as any })
+                                                }
+                                                disabled={isReadOnly}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-600"
+                                            >
+                                                <option value="ACTIVE">ACTIVE</option>
+                                                <option value="EXPIRED">EXPIRED</option>
+                                                <option value="PAUSED">PAUSED</option>
+                                            </select>
                                         </div>
 
                                         <div>
@@ -371,24 +387,6 @@ const ContractModal: React.FC<ContractModalProps> = ({ isOpen, onClose, contract
                                             {errors.endDate && (
                                                 <p className="mt-1 text-sm text-red-600">{errors.endDate}</p>
                                             )}
-                                        </div>
-
-                                        <div className="md:col-span-2">
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Status
-                                            </label>
-                                            <select
-                                                value={formData.status}
-                                                onChange={(e) =>
-                                                    setFormData({ ...formData, status: e.target.value as any })
-                                                }
-                                                disabled={isReadOnly}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-600"
-                                            >
-                                                <option value="ACTIVE">ACTIVE</option>
-                                                <option value="EXPIRED">EXPIRED</option>
-                                                <option value="PAUSED">PAUSED</option>
-                                            </select>
                                         </div>
                                     </div>
                                 </div>

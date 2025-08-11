@@ -20,26 +20,14 @@ import {
     AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@contexts/AuthContext";
+import { securityService, ContractDetail } from "@services/securityApi";
 import ContractModal from "@components/models/ContractModal";
 import ConfirmDialog from "@components/models/ConfirmDialog";
-
-interface Contract {
-    id: string;
-    customerName: string;
-    email: string;
-    phone: string;
-    deviceName: string;
-    organization: string;
-    timesMarked: number;
-    startDate: string;
-    endDate: string;
-    status: "ACTIVE" | "EXPIRED" | "PAUSED";
-}
 
 const ContractManagement: React.FC = () => {
     const { user, hasPermission, isLoading: authLoading } = useAuth();
     const [searchTerm, setSearchTerm] = useState("");
-    const [contracts, setContracts] = useState<Contract[]>([]);
+    const [contracts, setContracts] = useState<ContractDetail[]>([]);
     const [loadingData, setLoadingData] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -48,7 +36,7 @@ const ContractManagement: React.FC = () => {
     const [contractModal, setContractModal] = useState<{
         isOpen: boolean;
         mode: "view" | "edit" | "create";
-        contract: Contract | null;
+        contract: ContractDetail | null;
     }>({
         isOpen: false,
         mode: "create",
@@ -69,112 +57,12 @@ const ContractManagement: React.FC = () => {
         loading: false,
     });
 
-    // Mock data
-    const mockContracts: Contract[] = [
-        {
-            id: "1",
-            customerName: "John Doe",
-            email: "john.doe@example.com",
-            phone: "0705897004",
-            deviceName: "MinhKhang-PC",
-            organization: "Tech Corp",
-            timesMarked: 0,
-            startDate: "2025-01-21T02:48:00Z",
-            endDate: "2025-03-28T02:48:00Z",
-            status: "ACTIVE",
-        },
-        {
-            id: "2",
-            customerName: "Jane Smith",
-            email: "jane.smith@example.com",
-            phone: "0335599059",
-            deviceName: "DESKTOP-23D20P1",
-            organization: "TC Solutions",
-            timesMarked: 1558,
-            startDate: "2025-08-30T03:35:00Z",
-            endDate: "2025-07-31T03:35:00Z",
-            status: "ACTIVE",
-        },
-        {
-            id: "3",
-            customerName: "Mike Johnson",
-            email: "mike.johnson@example.com",
-            phone: "0000000000",
-            deviceName: "MacBook Pro M2",
-            organization: "Test Company",
-            timesMarked: 1351,
-            startDate: "2025-06-30T08:27:00Z",
-            endDate: "2025-07-24T08:27:00Z",
-            status: "ACTIVE",
-        },
-        {
-            id: "4",
-            customerName: "Sarah Wilson",
-            email: "sarah.wilson@example.com",
-            phone: "0909090909",
-            deviceName: "WORKSTATION-4H56DP",
-            organization: "BuildCorp",
-            timesMarked: 356,
-            startDate: "2025-03-01T11:54:00Z",
-            endDate: "2025-03-27T11:54:00Z",
-            status: "ACTIVE",
-        },
-        {
-            id: "5",
-            customerName: "Robert Brown",
-            email: "robert.brown@example.com",
-            phone: "0987654322",
-            deviceName: "DESKTOP-US86PDH",
-            organization: "Software Solutions Inc",
-            timesMarked: 0,
-            startDate: "2025-03-10T02:55:00Z",
-            endDate: "2025-03-10T02:55:00Z",
-            status: "ACTIVE",
-        },
-        {
-            id: "6",
-            customerName: "David Anderson",
-            email: "david.anderson@example.com",
-            phone: "0917730408",
-            deviceName: "DavidWorkstation",
-            organization: "Anderson Corp",
-            timesMarked: 1258,
-            startDate: "2025-02-07T09:54:00Z",
-            endDate: "2025-02-14T09:54:00Z",
-            status: "ACTIVE",
-        },
-        {
-            id: "7",
-            customerName: "Emily Davis",
-            email: "emily.davis@example.com",
-            phone: "0705897004",
-            deviceName: "LAPTOP-US86PDH",
-            organization: "Davis Enterprises",
-            timesMarked: 1403,
-            startDate: "2025-02-06T03:25:00Z",
-            endDate: "2025-02-13T03:25:00Z",
-            status: "ACTIVE",
-        },
-        {
-            id: "8",
-            customerName: "Alex Thompson",
-            email: "alex.thompson@example.com",
-            phone: "0329389589",
-            deviceName: "DESKTOP-E3WQ9U",
-            organization: "Thompson Tech",
-            timesMarked: 0,
-            startDate: "2025-02-06T02:37:00Z",
-            endDate: "2025-02-13T02:37:00Z",
-            status: "ACTIVE",
-        },
-    ];
-
     const fetchData = useCallback(async () => {
         setLoadingData(true);
         setError(null);
         try {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            setContracts(mockContracts);
+            const contractsData = await securityService.getContracts();
+            setContracts(contractsData);
         } catch (err) {
             console.error("Failed to fetch contracts:", err);
             setError("Failed to load contracts. Please try again.");
@@ -186,8 +74,8 @@ const ContractManagement: React.FC = () => {
     const refreshData = useCallback(async () => {
         setRefreshing(true);
         try {
-            await new Promise((resolve) => setTimeout(resolve, 500));
-            setContracts(mockContracts);
+            const contractsData = await securityService.getContracts();
+            setContracts(contractsData);
         } catch (err) {
             console.error("Failed to refresh contracts:", err);
             setError("Failed to refresh contracts. Please try again.");
@@ -203,7 +91,7 @@ const ContractManagement: React.FC = () => {
     }, [authLoading, fetchData]);
 
     // Contract handlers
-    const handleViewContract = (contract: Contract) => {
+    const handleViewContract = (contract: ContractDetail) => {
         setContractModal({
             isOpen: true,
             mode: "view",
@@ -211,7 +99,7 @@ const ContractManagement: React.FC = () => {
         });
     };
 
-    const handleEditContract = (contract: Contract) => {
+    const handleEditContract = (contract: ContractDetail) => {
         setContractModal({
             isOpen: true,
             mode: "edit",
@@ -227,16 +115,15 @@ const ContractManagement: React.FC = () => {
         });
     };
 
-    const handleDeleteContract = (contract: Contract) => {
+    const handleDeleteContract = (contract: ContractDetail) => {
         setConfirmDialog({
             isOpen: true,
             title: "Delete Contract",
-            message: `Are you sure you want to delete the contract for "${contract.customerName}"? This action cannot be undone.`,
+            message: `Are you sure you want to delete the contract for "${contract.customer.customerName}"? This action cannot be undone.`,
             onConfirm: async () => {
                 setConfirmDialog((prev) => ({ ...prev, loading: true }));
                 try {
-                    // Simulate API call
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
+                    await securityService.deleteContract(contract.id);
                     setContracts((prev) => prev.filter((c) => c.id !== contract.id));
                     setConfirmDialog((prev) => ({ ...prev, isOpen: false, loading: false }));
                 } catch (error) {
@@ -251,16 +138,12 @@ const ContractManagement: React.FC = () => {
     const handleSaveContract = async (contractData: any) => {
         try {
             if (contractModal.mode === "create") {
-                const newContract: Contract = {
-                    id: Date.now().toString(),
-                    ...contractData,
-                };
+                const newContract = await securityService.createContract(contractData);
                 setContracts((prev) => [...prev, newContract]);
             } else if (contractModal.mode === "edit" && contractModal.contract) {
+                const updatedContract = await securityService.updateContract(contractModal.contract.id, contractData);
                 setContracts((prev) =>
-                    prev.map((contract) =>
-                        contract.id === contractModal.contract!.id ? { ...contract, ...contractData } : contract
-                    )
+                    prev.map((contract) => (contract.id === contractModal.contract!.id ? updatedContract : contract))
                 );
             }
         } catch (error) {
@@ -274,11 +157,11 @@ const ContractManagement: React.FC = () => {
     // Filter contracts based on search term
     const filteredContracts = contracts.filter(
         (contract) =>
-            contract.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            contract.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            contract.phone.includes(searchTerm) ||
+            contract.customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            contract.customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (contract.customer.phone && contract.customer.phone.includes(searchTerm)) ||
             contract.deviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            contract.organization.toLowerCase().includes(searchTerm.toLowerCase())
+            (contract.organization && contract.organization.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     const getStatusBadge = (status: string) => {
@@ -457,30 +340,30 @@ const ContractManagement: React.FC = () => {
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div>
                                                 <div className="text-sm font-medium text-gray-900">
-                                                    {contract.customerName}
+                                                    {contract.customer.customerName}
                                                 </div>
                                                 <div className="text-sm text-gray-500 flex items-center">
                                                     <Mail className="h-3 w-3 mr-1" />
-                                                    {contract.email}
+                                                    {contract.customer.email}
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             <div className="flex items-center">
                                                 <Phone className="h-3 w-3 mr-1 text-gray-400" />
-                                                {contract.phone}
+                                                {contract.customer.phone || "-"}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {contract.deviceName}
+                                            {contract.customer?.deviceName}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {contract.organization || "-"}
+                                            {contract.customer?.organization || "-"}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             <div className="flex items-center">
                                                 <DollarSign className="h-3 w-3 mr-1 text-gray-400" />
-                                                {formatCurrency(contract.timesMarked)}
+                                                {contract.timesMarked}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

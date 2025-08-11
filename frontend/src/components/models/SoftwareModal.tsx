@@ -1,20 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { X, Monitor, Save, AlertCircle, Smartphone, Laptop } from "lucide-react";
-
-interface Software {
-    id: string;
-    name: string;
-    version: string;
-    platform: "iOS" | "Desktop" | "Android" | "Web";
-    isCurrentVersion: boolean;
-    status: "Active" | "Inactive" | "Expired";
-    lastUpdated: string;
-}
+import { SoftwareDetail } from "@services/securityApi";
 
 interface SoftwareModalProps {
     isOpen: boolean;
     onClose: () => void;
-    software?: Software | null;
+    software?: SoftwareDetail | null;
     mode: "view" | "edit" | "create";
     onSave: (softwareData: any) => Promise<void>;
 }
@@ -25,7 +16,7 @@ const SoftwareModal: React.FC<SoftwareModalProps> = ({ isOpen, onClose, software
         version: "",
         platform: "Desktop" as "iOS" | "Desktop" | "Android" | "Web",
         isCurrentVersion: false,
-        status: "Active" as "Active" | "Inactive" | "Expired",
+        status: "ACTIVE" as "ACTIVE" | "INACTIVE",
         lastUpdated: "",
     });
     const [loading, setSaving] = useState(false);
@@ -40,9 +31,8 @@ const SoftwareModal: React.FC<SoftwareModalProps> = ({ isOpen, onClose, software
     ];
 
     const statuses = [
-        { value: "Active", label: "Active", color: "text-green-600" },
-        { value: "Inactive", label: "Inactive", color: "text-yellow-600" },
-        { value: "Expired", label: "Expired", color: "text-red-600" },
+        { value: "ACTIVE", label: "Active", color: "text-green-600" },
+        { value: "INACTIVE", label: "Inactive", color: "text-yellow-600" },
     ];
 
     useEffect(() => {
@@ -52,7 +42,7 @@ const SoftwareModal: React.FC<SoftwareModalProps> = ({ isOpen, onClose, software
                 version: software.version || "",
                 platform: software.platform || "Desktop",
                 isCurrentVersion: software.isCurrentVersion || false,
-                status: software.status || "Active",
+                status: software.status || "ACTIVE",
                 lastUpdated: software.lastUpdated ? new Date(software.lastUpdated).toISOString().slice(0, 10) : "",
             });
         } else if (mode === "create") {
@@ -61,7 +51,7 @@ const SoftwareModal: React.FC<SoftwareModalProps> = ({ isOpen, onClose, software
                 version: "",
                 platform: "Desktop",
                 isCurrentVersion: false,
-                status: "Active",
+                status: "ACTIVE",
                 lastUpdated: new Date().toISOString().slice(0, 10),
             });
         }

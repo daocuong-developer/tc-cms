@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { CustomerDetail, securityService } from "@services/securityApi";
 import CustomerModel from "@components/models/CustomerModel";
+import ConfirmDialog from "@components/models/ConfirmDialog";
 
 const CustomerManagement: React.FC = () => {
     const [customers, setCustomers] = useState<CustomerDetail[]>([]);
@@ -28,6 +29,15 @@ const CustomerManagement: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetail | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [deleteDialog, setDeleteDialog] = useState<{
+        isOpen: boolean;
+        customer: CustomerDetail | null;
+        isDeleting: boolean;
+    }>({
+        isOpen: false,
+        customer: null,
+        isDeleting: false,
+    });
     const [showFilters, setShowFilters] = useState(false);
     const [filters, setFilters] = useState({
         hasPhone: "",
@@ -85,16 +95,33 @@ const CustomerManagement: React.FC = () => {
         setIsModalOpen(true);
     };
 
-    const handleDeleteCustomer = async (customer: CustomerDetail) => {
-        if (window.confirm(`Are you sure you want to delete customer "${customer.customerName}"?`)) {
-            try {
-                await securityService.deleteCustomer(customer.id);
-                await fetchCustomers();
-                showNotification("success", "Customer deleted successfully");
-            } catch (error) {
-                console.error("Error deleting customer:", error);
-                showNotification("error", "Failed to delete customer");
-            }
+    const handleDeleteCustomer = (customer: CustomerDetail) => {
+        setDeleteDialog({
+            isOpen: true,
+            customer,
+            isDeleting: false,
+        });
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteDialog.customer) return;
+
+        try {
+            setDeleteDialog((prev) => ({ ...prev, isDeleting: true }));
+            await securityService.deleteCustomer(deleteDialog.customer.id);
+            await fetchCustomers();
+            showNotification("success", "Customer deleted successfully");
+            setDeleteDialog({ isOpen: false, customer: null, isDeleting: false });
+        } catch (error) {
+            console.error("Error deleting customer:", error);
+            showNotification("error", "Failed to delete customer");
+            setDeleteDialog((prev) => ({ ...prev, isDeleting: false }));
+        }
+    };
+
+    const handleCloseDeleteDialog = () => {
+        if (!deleteDialog.isDeleting) {
+            setDeleteDialog({ isOpen: false, customer: null, isDeleting: false });
         }
     };
 
@@ -458,6 +485,19 @@ const CustomerManagement: React.FC = () => {
                 customer={selectedCustomer}
                 onSave={handleSaveCustomer}
                 isLoading={isSubmitting}
+            />
+
+            {/* Delete Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={deleteDialog.isOpen}
+                onClose={handleCloseDeleteDialog}
+                onConfirm={handleConfirmDelete}
+                title="Delete Customer"
+                message={`Are you sure you want to delete customer "${deleteDialog.customer?.customerName}"? This action cannot be undone.`}
+                confirmText="Delete Customer"
+                cancelText="Cancel"
+                type="danger"
+                loading={deleteDialog.isDeleting}
             />
         </div>
     );

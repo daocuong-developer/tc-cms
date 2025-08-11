@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
     Users,
     Shield,
@@ -23,11 +23,14 @@ import ConfirmDialog from "@components/models/ConfirmDialog";
 import RoleModal from "@components/models/RoleModal";
 import PermissionModal from "@components/models/PermissionModal";
 import GroupModal from "@/components/models/GroupModal";
+import { Pagination } from "@/components/ui/Pagination";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterDropdown } from "@/components/ui/FilterDropdown";
 
 const SecurityManagement: React.FC = () => {
     const { user, hasPermission, isLoading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState<"users" | "roles" | "permissions" | "groups">("users");
-    const [searchTerm, setSearchTerm] = useState("");
+    // const [searchTerm, setSearchTerm] = useState("");
     const [users, setUsers] = useState<UserDetail[]>([]);
     const [roles, setRoles] = useState<RoleDetail[]>([]);
     const [groups, setGroups] = useState<GroupDetail[]>([]);
@@ -35,6 +38,21 @@ const SecurityManagement: React.FC = () => {
 
     const [loadingData, setLoadingData] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Filter and Pagination States for Permissions Tab
+    const [searchTerm, setSearchTerm] = useState("");
+    const [permissionTypeFilter, setPermissionTypeFilter] = useState("all");
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const itemsPerPage = useMemo(
+        () => ({
+            users: 5,
+            roles: 10,
+            groups: 10,
+            permissions: 10,
+        }),
+        []
+    );
 
     // Check if user is Super Admin
     const isSuperAdmin =
@@ -368,14 +386,6 @@ const SecurityManagement: React.FC = () => {
         });
     };
 
-    const handleCreatePermission = () => {
-        setPermissionModal({
-            isOpen: true,
-            mode: "create",
-            permission: null,
-        });
-    };
-
     const handleDeletePermission = (permission: PermissionDetail) => {
         setConfirmDialog({
             isOpen: true,
@@ -476,24 +486,80 @@ const SecurityManagement: React.FC = () => {
         }
     };
 
+    const filteredAndPaginatedUsers = useMemo(() => {
+        let filtered = users.filter(
+            (user) =>
+                user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                user.email.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        const totalItems = filtered.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage.users);
+        const startIndex = (currentPage - 1) * itemsPerPage.users;
+        const endIndex = startIndex + itemsPerPage.users;
+        const data = filtered.slice(startIndex, endIndex);
+
+        return {
+            data,
+            totalItems,
+            totalPages,
+        };
+    }, [users, searchTerm, currentPage, itemsPerPage]);
+
+    const filteredAndPaginatedPermissions = useMemo(() => {
+        let filtered = permissions.filter((p) => {
+            const matchesSearch =
+                p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                p.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                p.module.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesType =
+                permissionTypeFilter === "all" ||
+                (permissionTypeFilter === "default-django" && isDefaultDjangoPermission(p.codename)) ||
+                (permissionTypeFilter === "no-default-django" && !isDefaultDjangoPermission(p.codename)) ||
+                (permissionTypeFilter !== "default-django" && p.type.toLowerCase() === permissionTypeFilter);
+            return matchesSearch && matchesType;
+        });
+
+        const totalItems = filtered.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage.permissions);
+        const startIndex = (currentPage - 1) * itemsPerPage.permissions;
+        const endIndex = startIndex + itemsPerPage.permissions;
+        const data = filtered.slice(startIndex, endIndex);
+
+        return {
+            data,
+            totalItems,
+            totalPages,
+        };
+    }, [permissions, searchTerm, permissionTypeFilter, currentPage, itemsPerPage]);
+
+    // Define options for FilterDropdown components
+    const permissionTypeOptions = [
+        { value: "all", label: "All Types" },
+        { value: "default-django", label: "Default Django Permission" },
+        { value: "no-default-django", label: "No Default Django Permission" },
+        { value: "module", label: "Module" },
+        { value: "system", label: "System" },
+    ];
+
+    useEffect(() => {
+        setCurrentPage(1);
+        setSearchTerm("");
+    }, [activeTab]);
+
     const renderUsers = () => (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-4">
-                    <div className="relative">
-                        <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search users..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                    </div>
-                    <button className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-                        <Filter className="h-4 w-4 mr-2" />
-                        Filter
-                    </button>
+                    <SearchInput
+                        value={searchTerm}
+                        onChange={(value) => {
+                            setSearchTerm(value);
+                            setCurrentPage(1);
+                        }}
+                        placeholder="Search users..."
+                    />
                 </div>
                 {checkPermission("add_user") && (
                     <button
@@ -510,42 +576,48 @@ const SecurityManagement: React.FC = () => {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                     <span className="ml-2 text-gray-600">Loading users...</span>
                 </div>
-            ) : error ? (
-                <div className="text-red-600 bg-red-50 border border-red-200 rounded-lg p-4">{error}</div>
+            ) : filteredAndPaginatedUsers.data.length === 0 ? (
+                <div className="text-center py-12">
+                    <div className="text-gray-500 text-lg mb-2">No users found</div>
+                    <div className="text-gray-400 text-sm">Try adjusting your search criteria.</div>
+                </div>
             ) : (
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    User
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Role
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Department
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Status
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Last Login
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {users
-                                .filter(
-                                    (user) =>
-                                        user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                        user.email.toLowerCase().includes(searchTerm.toLowerCase())
-                                )
-                                .map((user) => (
+                <>
+                    <div className="flex justify-between items-center text-sm text-gray-600">
+                        <span>
+                            Showing {filteredAndPaginatedUsers.data.length} out of a total of{" "}
+                            {filteredAndPaginatedUsers.totalItems} users
+                        </span>
+                        <span>
+                            Page {currentPage} / {filteredAndPaginatedUsers.totalPages}
+                        </span>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        User
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Role
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Department
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Status
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Last Login
+                                    </th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {filteredAndPaginatedUsers.data.map((user) => (
                                     <tr key={user.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
@@ -562,10 +634,7 @@ const SecurityManagement: React.FC = () => {
                                                     <div className="text-sm font-medium text-gray-900 flex items-center">
                                                         {user.full_name || user.username}
                                                         {user.is_superuser && (
-                                                            <Crown
-                                                                className="h-4 w-4 ml-2 text-yellow-500"
-                                                                title="Super Admin"
-                                                            />
+                                                            <Crown className="h-4 w-4 ml-2 text-yellow-500" />
                                                         )}
                                                     </div>
                                                     <div className="text-sm text-gray-500">{user.email}</div>
@@ -598,7 +667,7 @@ const SecurityManagement: React.FC = () => {
                                             )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {user.department?.name || "N/A"}
+                                            {user.department?.codename || "N/A"}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={getUserStatusBadge(getUserStatus(user))}>
@@ -641,9 +710,19 @@ const SecurityManagement: React.FC = () => {
                                         </td>
                                     </tr>
                                 ))}
-                        </tbody>
-                    </table>
-                </div>
+                            </tbody>
+                        </table>
+                    </div>
+                    {filteredAndPaginatedUsers.totalPages > 1 && (
+                        <div className="mt-4 flex justify-center">
+                            <Pagination
+                                currentPage={currentPage}
+                                totalPages={filteredAndPaginatedUsers.totalPages}
+                                onPageChange={setCurrentPage}
+                            />
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );
@@ -891,56 +970,63 @@ const SecurityManagement: React.FC = () => {
 
     const renderPermissions = () => (
         <div className="space-y-4">
-            <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-4">
-                    <div className="relative">
-                        <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search permissions..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                        />
-                    </div>
+            {/* Permission Filters */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <SearchInput
+                        value={searchTerm}
+                        onChange={(value) => {
+                            setSearchTerm(value);
+                            setCurrentPage(1);
+                        }}
+                        placeholder="Search by name, description, module..."
+                    />
+                    <FilterDropdown
+                        options={permissionTypeOptions}
+                        value={permissionTypeFilter}
+                        onChange={(value) => {
+                            setPermissionTypeFilter(value);
+                            setCurrentPage(1);
+                        }}
+                        placeholder="Select permission type"
+                    />
                 </div>
             </div>
-
             {loadingData ? (
                 <div className="flex items-center justify-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
                     <span className="ml-2 text-gray-600">Loading permissions...</span>
                 </div>
+            ) : filteredAndPaginatedPermissions.data.length === 0 ? (
+                <div className="text-center py-12">
+                    <div className="text-gray-500 text-lg mb-2">No permissions found</div>
+                    <div className="text-gray-400 text-sm">Try adjusting your search criteria.</div>
+                </div>
             ) : (
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Permission
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Module
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Type
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Description
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {permissions
-                                .filter(
-                                    (permission) =>
-                                        permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                        permission.module.toLowerCase().includes(searchTerm.toLowerCase())
-                                )
-                                .map((permission) => (
+                <>
+                    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Permission
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Module
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Type
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Description
+                                    </th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {filteredAndPaginatedPermissions.data.map((permission) => (
                                     <tr
                                         key={permission.id}
                                         className={`hover:bg-gray-50 ${
@@ -989,7 +1075,6 @@ const SecurityManagement: React.FC = () => {
                                                         <Edit className="h-4 w-4" />
                                                     </button>
                                                 )}
-                                                {/* Chỉ cho phép xóa khi là permission thủ công (ví dụ: không phải 4 quyền mặc định của Django): */}
                                                 {checkPermission("delete_permission") &&
                                                     !["add_", "change_", "delete_", "view_"].some((prefix) =>
                                                         permission.codename.startsWith(prefix)
@@ -1006,9 +1091,19 @@ const SecurityManagement: React.FC = () => {
                                         </td>
                                     </tr>
                                 ))}
-                        </tbody>
-                    </table>
-                </div>
+                            </tbody>
+                        </table>
+                    </div>
+                    {filteredAndPaginatedPermissions.totalPages > 1 && (
+                        <div className="mt-4 flex justify-center">
+                            <Pagination
+                                currentPage={currentPage}
+                                totalPages={filteredAndPaginatedPermissions.totalPages}
+                                onPageChange={setCurrentPage}
+                            />
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );
