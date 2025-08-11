@@ -1,4 +1,4 @@
-import ContentHeader from "@components/common/ContentHeader";
+import ContentHeader from "@/components/ui/ContentHeader";
 import React, { useState, useEffect, useCallback } from "react";
 import {
     Users,
@@ -1061,6 +1061,7 @@ const SecurityManagement: React.FC = () => {
                 isSuperAdmin={true}
                 description="Manage users, roles, departments, and permissions to ensure proper access control and security across the document management system."
                 storageKey="securityManagementHeaderClosed"
+                userId={user?.id} // Assuming no specific user ID is needed for this context
             />
 
             {/* Tab Navigation */}

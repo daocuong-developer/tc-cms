@@ -40,6 +40,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             const response = await authApi.login(credentials);
             setUser(response.user);
+
+            const headerKeys = [
+            "administrationModuleHeaderClosed",
+            "customerManagementHeaderClosed",
+            "receivingModuleHeaderClosed",
+            "softwareManagementHeaderClosed",
+            "backofficeModuleHeaderClosed",
+            "executiveSummaryHeaderClosed",
+            "lookupModuleHeaderClosed",
+            "organizationManagerHeaderClosed",
+            "roleListHeaderClosed",
+            "securityManagementHeaderClosed",
+        ];
+        headerKeys.forEach(key => {
+            localStorage.removeItem(`${key}_${response.user.id}`);
+        });
+
             navigate("/dashboard");
         } finally {
             setIsLoading(false);

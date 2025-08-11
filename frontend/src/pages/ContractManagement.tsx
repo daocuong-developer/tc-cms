@@ -23,7 +23,7 @@ import { useAuth } from "@contexts/AuthContext";
 import { securityService, ContractDetail } from "@services/securityApi";
 import ContractModal from "@components/models/ContractModal";
 import ConfirmDialog from "@components/models/ConfirmDialog";
-import ContentHeader from "@/components/common/ContentHeader";
+import ContentHeader from "@/components/ui/ContentHeader";
 
 const ContractManagement: React.FC = () => {
     const { user, hasPermission, isLoading: authLoading } = useAuth();
@@ -243,6 +243,8 @@ const ContractManagement: React.FC = () => {
                 title="Contract Management"
                 description="Manage customer contracts, track their status and expiration dates."
                 storageKey="contractManagementHeaderClosed"
+                userId={user?.id} // truyền id user
+
             />
 
             {/* Controls */}

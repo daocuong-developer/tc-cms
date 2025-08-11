@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import ContentHeader from "@components/common/ContentHeader";
+import ContentHeader from "@/components/ui/ContentHeader";
 import {
     Users,
     Plus,
@@ -21,9 +21,11 @@ import {
 import { CustomerDetail, securityService } from "@services/securityApi";
 import CustomerModel from "@components/models/CustomerModel";
 import ConfirmDialog from "@components/models/ConfirmDialog";
+import { useAuth } from "@contexts/AuthContext";
 
 const CustomerManagement: React.FC = () => {
     const [customers, setCustomers] = useState<CustomerDetail[]>([]);
+    const { user } = useAuth(); // lấy user từ context
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
@@ -226,6 +228,7 @@ const CustomerManagement: React.FC = () => {
     title="Customer Management"
     description="Manage customer information in the system"
     storageKey="customerManagementHeaderClosed"
+    userId={user?.id} // truyền id user
 />
 
 {/* Controls */}

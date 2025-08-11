@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import ContentHeader from "@/components/common/ContentHeader";
+import ContentHeader from "@/components/ui/ContentHeader";
 import {
     Building,
     Building2,

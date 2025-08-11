@@ -1,5 +1,5 @@
 import React from 'react';
-import ContentHeader from '@/components/common/ContentHeader';
+import ContentHeader from '@/components/ui/ContentHeader';
 
 const TechnicalConsiderations: React.FC = () => (
   // <div>

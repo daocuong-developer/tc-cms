@@ -1,16 +1,19 @@
-import ContentHeader from '@/components/common/ContentHeader';
+import ContentHeader from '@/components/ui/ContentHeader';
+import { useAuth } from '@/contexts/AuthContext';
 import React from 'react';
 
-const AdministrationModule: React.FC = () => (
-  // <div>
-  //   <h1 className="text-2xl font-bold mb-4">System Administration Module</h1>
-  //   <p className="text-gray-700">This is the System Administration Module page. Add your content here.</p>
-  // </div>
-  <ContentHeader
-    title="System Administration Module"
-    description="This module allows administrators to manage system settings, user roles, and permissions."
-    storageKey="administrationModuleHeaderClosed"
-  />
-);
+const AdministrationModule: React.FC = () => {
+  const { user } = useAuth(); // lấy user từ context
+  
 
-export default AdministrationModule; 
+  return (
+    <ContentHeader
+      title="System Administration Module"
+      description="This module allows administrators to manage system settings, user roles, and permissions."
+      storageKey="administrationModuleHeaderClosed"
+      userId={user?.id} // truyền id user
+    />
+  );
+};
+
+export default AdministrationModule;

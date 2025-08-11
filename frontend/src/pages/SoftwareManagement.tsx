@@ -83,7 +83,7 @@
     //     },
     // ];
 
-import ContentHeader from "@/components/common/ContentHeader";
+import ContentHeader from "@/components/ui/ContentHeader";
 import React, { useState, useEffect, useCallback } from "react";
 import {
     Monitor,
@@ -320,6 +320,7 @@ const SoftwareManagement: React.FC = () => {
                 title="Software Management"
                 description="Manage software information, versions and activation status in the system."
                 storageKey="softwareManagementHeaderClosed"
+                userId={user?.id} // truyền id user
             />
 
             {/* Controls */}
