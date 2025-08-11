@@ -39,6 +39,7 @@ class RoleAdmin(admin.ModelAdmin):
     search_fields = ('name', 'description')
     filter_horizontal = ('permissions', 'users')
 
+
 # Registers the Permission model
 @admin.register(Permission)
 class PermissionAdmin(admin.ModelAdmin):
@@ -75,32 +76,27 @@ class DepartmentAdmin(admin.ModelAdmin):
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
     list_display = (
-        'customerName', 'email', 'phone', 'deviceName', 
-        'get_organization_name',
+        'customerName', 'email', 'phone', 'deviceName', 'organization',
         'created_at'
     )
-    search_fields = ('customerName', 'email', 'phone')
+    search_fields = ('customerName', 'email', 'phone','organization')
     ordering = ('customerName',)
-    list_filter = (
-        'department__organization', 
-        'group__organization',     
-    )
-
-    def get_organization_name(self, obj):
-        if obj.department and obj.department.organization:
-            return obj.department.organization.name
-        if obj.group and obj.group.organization:
-            return obj.group.organization.name
-        return "N/A"
-    
-    get_organization_name.short_description = 'Organization' 
+    list_filter = ['organization']
 
 # Registers the Contract model
 @admin.register(Contract)
 class ContractAdmin(admin.ModelAdmin):
-    list_display = ('customer', 'get_customer_device_name', 'get_customer_organization', 'status', 'startDate', 'endDate', 'timesMarked')
-    search_fields = ('customer__customerName',)
-    list_filter = ('status', 'customer__department__organization', 'customer__group__organization',)
+    list_display = (
+        'customer',
+        'get_customer_device_name',
+        'customer__organization', 
+        'status',
+        'startDate',
+        'endDate',
+        'timesMarked'
+    )
+    search_fields = ('customer__customerName','customer__organization')
+    list_filter = ('status',)
     ordering = ('-startDate',)
     raw_id_fields = ('customer',)
 
@@ -108,14 +104,6 @@ class ContractAdmin(admin.ModelAdmin):
         return obj.customer.deviceName if obj.customer else None
     get_customer_device_name.short_description = 'Device Name'
     
-    def get_customer_organization(self, obj):
-        if obj.customer.department:
-            return obj.customer.department.organization
-        if obj.customer.group:
-            return obj.customer.group.organization
-        return None
-    get_customer_organization.short_description = 'Organization'
-
 # Registers the Software model
 @admin.register(Software)
 class SoftwareAdmin(admin.ModelAdmin):

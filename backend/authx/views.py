@@ -10,6 +10,7 @@ from django.contrib.auth import get_user_model
 from datetime import datetime, timezone
 from django.contrib.auth.models import update_last_login
 from django.db import models 
+
 from .serializers import (
     RegisterSerializer, LoginSerializer, UserSerializer,
     OrganizationSerializer, DepartmentSerializer,
@@ -18,8 +19,8 @@ from .serializers import (
 from .models import Role, Permission, Organization, Department, Group, Contract, Software, Customer
 from .permissions import permission_required, IsSelfOrAdmin  
 
-User = get_user_model()
 
+User = get_user_model()
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = LoginSerializer
@@ -93,20 +94,18 @@ class PermissionViewSet(viewsets.ModelViewSet):
     serializer_class = PermissionSerializer
     permission_classes = [IsAdminUser]
 
+
     @action(detail=False, methods=['get'])
     def merged(self, request):
         
         # Lấy quyền custom từ bảng authx
         custom_perms = list(CustomPermission.objects.values(
-            codename=models.F('codename'),
-            name=models.F('name'),
-            description=models.F('description'),
-            module=models.F('module'),
-            type=models.F('type')
+            'id', 'codename', 'name', 'description', 'module', 'type'
         ))
 
         # Lấy quyền hệ thống Django
         system_perms = list(DjangoPermission.objects.values(
+            'id',
             codename=models.F('codename'),
             name=models.F('name'),
             description=models.Value('', output_field=models.CharField()),  
@@ -114,9 +113,9 @@ class PermissionViewSet(viewsets.ModelViewSet):
             type=models.Value('default', output_field=models.CharField())
         ))
 
-        # Gộp và loại bỏ trùng codename 
         merged = {p['codename']: p for p in system_perms + custom_perms}
         return Response(list(merged.values()))
+       
 
 class GroupViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all().order_by('organization__name', 'name')
@@ -177,15 +176,10 @@ class CustomerViewSet(viewsets.ModelViewSet):
         user = self.request.user
         
         if user.is_superuser or user.has_perm('authx.view_all_customers'):
-            return Customer.objects.all().select_related('department', 'group')
+            return Customer.objects.all()
 
         if user.organization:
-            user_departments = user.organization.departments.all()
-            user_groups = user.organization.groups.all()
-            
-            return Customer.objects.filter(
-                models.Q(department__in=user_departments) | models.Q(group__in=user_groups)
-            ).distinct().select_related('department', 'group')
+            return Customer.objects.filter(organization=user.organization.name)
         
         return Customer.objects.none()
 
