@@ -4,6 +4,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
+from .models import Permission as CustomPermission
+from django.contrib.auth.models import Permission as DjangoPermission
 from django.contrib.auth import get_user_model
 from datetime import datetime, timezone
 from django.contrib.auth.models import update_last_login
@@ -91,6 +93,30 @@ class PermissionViewSet(viewsets.ModelViewSet):
     serializer_class = PermissionSerializer
     permission_classes = [IsAdminUser]
 
+    @action(detail=False, methods=['get'])
+    def merged(self, request):
+        
+        # Lấy quyền custom từ bảng authx
+        custom_perms = list(CustomPermission.objects.values(
+            codename=models.F('codename'),
+            name=models.F('name'),
+            description=models.F('description'),
+            module=models.F('module'),
+            type=models.F('type')
+        ))
+
+        # Lấy quyền hệ thống Django
+        system_perms = list(DjangoPermission.objects.values(
+            codename=models.F('codename'),
+            name=models.F('name'),
+            description=models.Value('', output_field=models.CharField()),  
+            module=models.F('content_type__app_label'),
+            type=models.Value('default', output_field=models.CharField())
+        ))
+
+        # Gộp và loại bỏ trùng codename 
+        merged = {p['codename']: p for p in system_perms + custom_perms}
+        return Response(list(merged.values()))
 
 class GroupViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all().order_by('organization__name', 'name')

@@ -98,11 +98,23 @@ class CustomerAdmin(admin.ModelAdmin):
 # Registers the Contract model
 @admin.register(Contract)
 class ContractAdmin(admin.ModelAdmin):
-    list_display = ('customer', 'deviceName', 'status', 'startDate', 'endDate', 'totalAmount')
-    search_fields = ('customer__customerName', 'deviceName', 'organization')
-    list_filter = ('status', 'organization')
+    list_display = ('customer', 'get_customer_device_name', 'get_customer_organization', 'status', 'startDate', 'endDate', 'timesMarked')
+    search_fields = ('customer__customerName',)
+    list_filter = ('status', 'customer__department__organization', 'customer__group__organization',)
     ordering = ('-startDate',)
     raw_id_fields = ('customer',)
+
+    def get_customer_device_name(self, obj):
+        return obj.customer.deviceName if obj.customer else None
+    get_customer_device_name.short_description = 'Device Name'
+    
+    def get_customer_organization(self, obj):
+        if obj.customer.department:
+            return obj.customer.department.organization
+        if obj.customer.group:
+            return obj.customer.group.organization
+        return None
+    get_customer_organization.short_description = 'Organization'
 
 # Registers the Software model
 @admin.register(Software)

@@ -117,9 +117,21 @@ class ContractSerializer(serializers.ModelSerializer):
         queryset=Customer.objects.all(), source='customer', write_only=True
     )
 
+    customer_device_name = serializers.CharField(source='customer.deviceName', read_only=True)
+    customer_organization = serializers.SerializerMethodField()
+
     class Meta:
         model = Contract
-        fields = ['id', 'deviceName', 'organization', 'totalAmount', 'startDate', 'endDate', 'status', 'customer', 'customer_id']
+        fields = ['id', 'timesMarked', 'startDate', 'endDate', 'status', 
+                  'customer', 'customer_id', 'customer_device_name', 'customer_organization']
+        
+    def get_customer_organization(self, obj):
+        if obj.customer.department and obj.customer.department.organization:
+            return obj.customer.department.organization.name
+        if obj.customer.group and obj.customer.group.organization:
+            return obj.customer.group.organization.name
+        return None
+
 
 class SoftwareSerialzer(serializers.ModelSerializer):
     class Meta:
