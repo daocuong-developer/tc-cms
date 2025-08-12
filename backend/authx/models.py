@@ -169,8 +169,12 @@ class Role(models.Model):
         verbose_name_plural = 'Roles'
         ordering = ['name']
 
+        permissions = [("can_share_role", "Can share role")]
+    
+
     def __str__(self):
         return self.name
+
 
 
 # --- Customer Model ---
@@ -221,9 +225,8 @@ class Contract(models.Model):
         on_delete=models.CASCADE,
         related_name='contracts'
     )
-    deviceName = models.CharField(max_length=255)
-    organization = models.CharField(max_length=255)
-    totalAmount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    timesMarked = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     startDate = models.DateTimeField()
     endDate = models.DateTimeField()
     status = models.CharField(
