@@ -1,90 +1,5 @@
-    // Mock data
-    // const mockSoftware: Software[] = [
-    //     {
-    //         id: "1",
-    //         name: "VS Code",
-    //         version: "19.5.1",
-    //         platform: "iOS",
-    //         isCurrentVersion: true,
-    //         status: "Active",
-    //         lastUpdated: "2025-07-01T00:00:00Z",
-    //     },
-    //     {
-    //         id: "2",
-    //         name: "A-MarkAI",
-    //         version: "1.2.8",
-    //         platform: "Desktop",
-    //         isCurrentVersion: true,
-    //         status: "Active",
-    //         lastUpdated: "2025-03-24T00:00:00Z",
-    //     },
-    //     {
-    //         id: "3",
-    //         name: "System Monitor",
-    //         version: "4.4.4",
-    //         platform: "Desktop",
-    //         isCurrentVersion: false,
-    //         status: "Inactive",
-    //         lastUpdated: "2025-07-07T00:00:00Z",
-    //     },
-    //     {
-    //         id: "4",
-    //         name: "VS Code",
-    //         version: "19.5.1",
-    //         platform: "iOS",
-    //         isCurrentVersion: false,
-    //         status: "Active",
-    //         lastUpdated: "2025-07-01T00:00:00Z",
-    //     },
-    //     {
-    //         id: "5",
-    //         name: "Code Editor Pro",
-    //         version: "2.1.3",
-    //         platform: "Android",
-    //         isCurrentVersion: false,
-    //         status: "Active",
-    //         lastUpdated: "2025-07-01T00:00:00Z",
-    //     },
-    //     {
-    //         id: "6",
-    //         name: "Development Tools",
-    //         version: "3.2.1",
-    //         platform: "Web",
-    //         isCurrentVersion: false,
-    //         status: "Active",
-    //         lastUpdated: "2025-07-01T00:00:00Z",
-    //     },
-    //     {
-    //         id: "7",
-    //         name: "Test Suite",
-    //         version: "12",
-    //         platform: "iOS",
-    //         isCurrentVersion: false,
-    //         status: "Active",
-    //         lastUpdated: "2025-03-26T00:00:00Z",
-    //     },
-    //     {
-    //         id: "8",
-    //         name: "Quality Assurance",
-    //         version: "1.5.2",
-    //         platform: "Desktop",
-    //         isCurrentVersion: false,
-    //         status: "Active",
-    //         lastUpdated: "2025-03-26T00:00:00Z",
-    //     },
-    //     {
-    //         id: "9",
-    //         name: "AutoMark",
-    //         version: "1.0.0",
-    //         platform: "Desktop",
-    //         isCurrentVersion: false,
-    //         status: "Active",
-    //         lastUpdated: "2025-03-06T00:00:00Z",
-    //     },
-    // ];
-
 import ContentHeader from "@/components/ui/ContentHeader";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react"; // Added useMemo
 import {
     Monitor,
     Plus,
@@ -103,6 +18,8 @@ import {
     Download,
     Smartphone,
     Laptop,
+    ChevronLeft, // Import ChevronLeft
+    ChevronRight, // Import ChevronRight
 } from "lucide-react";
 import { useAuth } from "@contexts/AuthContext";
 import { securityService, SoftwareDetail } from "@services/securityApi";
@@ -116,6 +33,10 @@ const SoftwareManagement: React.FC = () => {
     const [loadingData, setLoadingData] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(20); // Default items per page
 
     // Modal states
     const [softwareModal, setSoftwareModal] = useState<{
@@ -161,6 +82,7 @@ const SoftwareManagement: React.FC = () => {
         try {
             const softwareData = await securityService.getSoftware();
             setSoftware(softwareData);
+            setCurrentPage(1); // Reset to first page on refresh
         } catch (err) {
             console.error("Failed to refresh software:", err);
             setError("Failed to refresh software. Please try again.");
@@ -238,12 +160,32 @@ const SoftwareManagement: React.FC = () => {
     const dismissError = () => setError(null);
 
     // Filter software based on search term
-    const filteredSoftware = software.filter(
-        (s) =>
-            s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            s.version.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            s.platform.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredSoftware = useMemo(() => {
+        return software.filter(
+            (s) =>
+                s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                s.version.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                s.platform.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [software, searchTerm]);
+
+    // Pagination calculations
+    const totalItems = filteredSoftware.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+    const paginatedSoftware = filteredSoftware.slice(startIndex, endIndex);
+
+    const handlePageChange = (page: number) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    };
+
+    const handleItemsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setItemsPerPage(Number(e.target.value));
+        setCurrentPage(1); // Reset to first page when items per page changes
+    };
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -309,18 +251,11 @@ const SoftwareManagement: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            {/* <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">Software Management</h3>
-                <p className="text-gray-700 leading-relaxed">
-                    Manage software information, versions and activation status in the system.
-                </p>
-            </div> */}
             <ContentHeader
                 title="Software Management"
                 description="Manage software information, versions and activation status in the system."
                 storageKey="softwareManagementHeaderClosed"
-                userId={user?.id} // truyền id user
+                userId={user?.id}
             />
 
             {/* Controls */}
@@ -332,7 +267,10 @@ const SoftwareManagement: React.FC = () => {
                             type="text"
                             placeholder="Search software..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                setCurrentPage(1); // Reset to first page on search
+                            }}
                             className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                         />
                     </div>
@@ -412,75 +350,83 @@ const SoftwareManagement: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {filteredSoftware.map((software, index) => (
-                                    <tr key={software.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {index + 1}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                                <Monitor className="h-5 w-5 text-purple-500 mr-2" />
-                                                <div className="text-sm font-medium text-gray-900">{software.name}</div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {software.version}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                                {getPlatformIcon(software.platform)}
-                                                <span className="ml-2 text-sm text-gray-900">{software.platform}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            {software.isCurrentVersion ? (
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                    <CheckCircle className="w-3 h-3 mr-1" />
-                                                    Yes
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                                    <XCircle className="w-3 h-3 mr-1" />
-                                                    No
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            {getStatusBadge(software.status)}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            <div className="flex items-center">
-                                                <Calendar className="h-3 w-3 mr-1 text-gray-400" />
-                                                {formatDateTime(software.lastUpdated)}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <div className="flex items-center space-x-2">
-                                                <button
-                                                    onClick={() => handleViewSoftware(software)}
-                                                    className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
-                                                    title="View Details"
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleEditSoftware(software)}
-                                                    className="text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-50"
-                                                    title="Edit"
-                                                >
-                                                    <Edit className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteSoftware(software)}
-                                                    className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
-                                            </div>
+                                {paginatedSoftware.length > 0 ? (
+                                    paginatedSoftware.map((software, index) => (
+                                        <tr key={software.id} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {startIndex + index + 1} {/* Corrected index for pagination */}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center">
+                                                    <Monitor className="h-5 w-5 text-purple-500 mr-2" />
+                                                    <div className="text-sm font-medium text-gray-900">{software.name}</div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {software.version}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center">
+                                                    {getPlatformIcon(software.platform)}
+                                                    <span className="ml-2 text-sm text-gray-900">{software.platform}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                {software.isCurrentVersion ? (
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                        <CheckCircle className="w-3 h-3 mr-1" />
+                                                        Yes
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                                        <XCircle className="w-3 h-3 mr-1" />
+                                                        No
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                {getStatusBadge(software.status)}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                <div className="flex items-center">
+                                                    <Calendar className="h-3 w-3 mr-1 text-gray-400" />
+                                                    {formatDateTime(software.lastUpdated)}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                <div className="flex items-center space-x-2">
+                                                    <button
+                                                        onClick={() => handleViewSoftware(software)}
+                                                        className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
+                                                        title="View Details"
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleEditSoftware(software)}
+                                                        className="text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-50"
+                                                        title="Edit"
+                                                    >
+                                                        <Edit className="h-4 w-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteSoftware(software)}
+                                                        className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={8} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                                            No software found.
                                         </td>
                                     </tr>
-                                ))}
+                                )}
                             </tbody>
                         </table>
                     </div>
@@ -488,32 +434,81 @@ const SoftwareManagement: React.FC = () => {
                     {/* Pagination */}
                     <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
                         <div className="flex-1 flex justify-between sm:hidden">
-                            <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            <button
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
                                 Previous
                             </button>
-                            <button className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            <button
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
                                 Next
                             </button>
                         </div>
                         <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                             <div>
                                 <p className="text-sm text-gray-700">
-                                    Showing <span className="font-medium">1</span> to{" "}
-                                    <span className="font-medium">{filteredSoftware.length}</span> of{" "}
-                                    <span className="font-medium">{filteredSoftware.length}</span> results
+                                    Showing <span className="font-semibold">{startIndex + 1}</span> to{" "}
+                                    <span className="font-semibold">{endIndex}</span> of{" "}
+                                    <span className="font-semibold">{totalItems}</span> results
                                 </p>
                             </div>
-                            <div>
-                                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                                    <button className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                                        1
+                            <div className="flex items-center space-x-3"> {/* Added space-x-3 for spacing between nav and select */}
+                                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                    {/* Previous Button with Lucide icon */}
+                                    <button
+                                        onClick={() => handlePageChange(currentPage - 1)}
+                                        disabled={currentPage === 1}
+                                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        aria-label="Previous"
+                                    >
+                                        <span className="sr-only">Previous</span>
+                                        <ChevronLeft className="h-5 w-5" />
                                     </button>
-                                    <select className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                                        <option>20</option>
-                                        <option>50</option>
-                                        <option>100</option>
-                                    </select>
+
+                                    {/* Page Number Buttons */}
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
+                                        <button
+                                            key={pageNumber}
+                                            onClick={() => handlePageChange(pageNumber)}
+                                            aria-current={currentPage === pageNumber ? "page" : undefined}
+                                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium
+                                                ${currentPage === pageNumber
+                                                    ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
+                                                    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
+                                                }`}
+                                        >
+                                            {pageNumber}
+                                        </button>
+                                    ))}
+
+                                    {/* Next Button with Lucide icon */}
+                                    <button
+                                        onClick={() => handlePageChange(currentPage + 1)}
+                                        disabled={currentPage === totalPages}
+                                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        aria-label="Next"
+                                    >
+                                        <span className="sr-only">Next</span>
+                                        <ChevronRight className="h-5 w-5" />
+                                    </button>
                                 </nav>
+
+                                {/* Items per page selector */}
+                                <select
+                                    value={itemsPerPage}
+                                    onChange={handleItemsPerPageChange}
+                                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-md"
+                                >
+                                    <option value={10}>10 per page</option> {/* Added 10 as an option */}
+                                    <option value={20}>20 per page</option>
+                                    <option value={50}>50 per page</option>
+                                    <option value={100}>100 per page</option>
+                                </select>
                             </div>
                         </div>
                     </div>

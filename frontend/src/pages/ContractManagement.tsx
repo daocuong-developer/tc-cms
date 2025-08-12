@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
     FileText,
     Plus,
@@ -18,6 +18,8 @@ import {
     CheckCircle,
     XCircle,
     AlertTriangle,
+    ChevronLeft, // Import ChevronLeft
+    ChevronRight, // Import ChevronRight
 } from "lucide-react";
 import { useAuth } from "@contexts/AuthContext";
 import { securityService, ContractDetail } from "@services/securityApi";
@@ -32,6 +34,9 @@ const ContractManagement: React.FC = () => {
     const [loadingData, setLoadingData] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(20); // Default items per page
 
     // Modal states
     const [contractModal, setContractModal] = useState<{
@@ -164,6 +169,22 @@ const ContractManagement: React.FC = () => {
             contract.deviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (contract.organization && contract.organization.toLowerCase().includes(searchTerm.toLowerCase()))
     );
+    const totalItems = filteredContracts.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+    const paginatedContracts = filteredContracts.slice(startIndex, endIndex);
+
+    const handlePageChange = (page: number) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    };
+
+    const handleItemsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setItemsPerPage(Number(e.target.value));
+        setCurrentPage(1); // Reset to first page when items per page changes
+    };
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -306,7 +327,7 @@ const ContractManagement: React.FC = () => {
             ) : (
                 <div className="bg-white rounded-lg shadow overflow-hidden">
                     <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
+                        <table className="w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -342,10 +363,10 @@ const ContractManagement: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {filteredContracts.map((contract, index) => (
+                                {paginatedContracts.map((contract, index) => (
                                     <tr key={contract.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {index + 1}
+                                        <td className="px-6 py-4 text-sm text-gray-900 truncate max-w-xs">
+                                            {startIndex + index + 1}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div>
@@ -358,31 +379,31 @@ const ContractManagement: React.FC = () => {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <td className="px-6 py-4 text-sm text-gray-900 truncate max-w-xs">
                                             <div className="flex items-center">
                                                 <Phone className="h-3 w-3 mr-1 text-gray-400" />
                                                 {contract.customer.phone || "-"}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <td className="px-6 py-4 text-sm text-gray-900 truncate max-w-xs">
                                             {contract.customer?.deviceName}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <td className="px-6 py-4 text-sm text-gray-900 truncate max-w-xs">
                                             {contract.customer?.organization || "-"}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <td className="px-6 py-4 text-sm text-gray-900 truncate max-w-xs">
                                             <div className="flex items-center">
                                                 <DollarSign className="h-3 w-3 mr-1 text-gray-400" />
                                                 {contract.timesMarked}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <td className="px-6 py-4 text-sm text-gray-900 truncate max-w-xs">
                                             <div className="flex items-center">
                                                 <Calendar className="h-3 w-3 mr-1 text-gray-400" />
                                                 {formatDateTime(contract.startDate)}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <td className="px-6 py-4 text-sm text-gray-900 truncate max-w-xs">
                                             <div className="flex items-center">
                                                 <Clock className="h-3 w-3 mr-1 text-gray-400" />
                                                 {formatDateTime(contract.endDate)}
@@ -425,32 +446,81 @@ const ContractManagement: React.FC = () => {
                     {/* Pagination */}
                     <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
                         <div className="flex-1 flex justify-between sm:hidden">
-                            <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            <button
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
                                 Previous
                             </button>
-                            <button className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            <button
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
                                 Next
                             </button>
                         </div>
                         <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                             <div>
                                 <p className="text-sm text-gray-700">
-                                    Showing <span className="font-medium">1</span> to{" "}
-                                    <span className="font-medium">{filteredContracts.length}</span> of{" "}
-                                    <span className="font-medium">{filteredContracts.length}</span> results
+                                    Showing <span className="font-semibold">{startIndex + 1}</span> to{" "}
+                                    <span className="font-semibold">{endIndex}</span> of{" "}
+                                    <span className="font-semibold">{totalItems}</span> results
                                 </p>
                             </div>
-                            <div>
-                                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                                    <button className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                                        1
+                            <div className="flex items-center space-x-3"> {/* Added space-x-3 for spacing between nav and select */}
+                                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                    {/* Previous Button with Lucide icon */}
+                                    <button
+                                        onClick={() => handlePageChange(currentPage - 1)}
+                                        disabled={currentPage === 1}
+                                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        aria-label="Previous"
+                                    >
+                                        <span className="sr-only">Previous</span>
+                                        <ChevronLeft className="h-5 w-5" />
                                     </button>
-                                    <select className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                                        <option>20</option>
-                                        <option>50</option>
-                                        <option>100</option>
-                                    </select>
+
+                                    {/* Page Number Buttons */}
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
+                                        <button
+                                            key={pageNumber}
+                                            onClick={() => handlePageChange(pageNumber)}
+                                            aria-current={currentPage === pageNumber ? "page" : undefined}
+                                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium
+                                                ${currentPage === pageNumber
+                                                    ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
+                                                    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
+                                                }`}
+                                        >
+                                            {pageNumber}
+                                        </button>
+                                    ))}
+
+                                    {/* Next Button with Lucide icon */}
+                                    <button
+                                        onClick={() => handlePageChange(currentPage + 1)}
+                                        disabled={currentPage === totalPages}
+                                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        aria-label="Next"
+                                    >
+                                        <span className="sr-only">Next</span>
+                                        <ChevronRight className="h-5 w-5" />
+                                    </button>
                                 </nav>
+
+                                {/* Items per page selector */}
+                                <select
+                                    value={itemsPerPage}
+                                    onChange={handleItemsPerPageChange}
+                                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-md"
+                                >
+                                    <option value={10}>10 per page</option> {/* Added 10 as an option */}
+                                    <option value={20}>20 per page</option>
+                                    <option value={50}>50 per page</option>
+                                    <option value={100}>100 per page</option>
+                                </select>
                             </div>
                         </div>
                     </div>
