@@ -1,90 +1,4 @@
-    // Mock data
-    // const mockSoftware: Software[] = [
-    //     {
-    //         id: "1",
-    //         name: "VS Code",
-    //         version: "19.5.1",
-    //         platform: "iOS",
-    //         isCurrentVersion: true,
-    //         status: "Active",
-    //         lastUpdated: "2025-07-01T00:00:00Z",
-    //     },
-    //     {
-    //         id: "2",
-    //         name: "A-MarkAI",
-    //         version: "1.2.8",
-    //         platform: "Desktop",
-    //         isCurrentVersion: true,
-    //         status: "Active",
-    //         lastUpdated: "2025-03-24T00:00:00Z",
-    //     },
-    //     {
-    //         id: "3",
-    //         name: "System Monitor",
-    //         version: "4.4.4",
-    //         platform: "Desktop",
-    //         isCurrentVersion: false,
-    //         status: "Inactive",
-    //         lastUpdated: "2025-07-07T00:00:00Z",
-    //     },
-    //     {
-    //         id: "4",
-    //         name: "VS Code",
-    //         version: "19.5.1",
-    //         platform: "iOS",
-    //         isCurrentVersion: false,
-    //         status: "Active",
-    //         lastUpdated: "2025-07-01T00:00:00Z",
-    //     },
-    //     {
-    //         id: "5",
-    //         name: "Code Editor Pro",
-    //         version: "2.1.3",
-    //         platform: "Android",
-    //         isCurrentVersion: false,
-    //         status: "Active",
-    //         lastUpdated: "2025-07-01T00:00:00Z",
-    //     },
-    //     {
-    //         id: "6",
-    //         name: "Development Tools",
-    //         version: "3.2.1",
-    //         platform: "Web",
-    //         isCurrentVersion: false,
-    //         status: "Active",
-    //         lastUpdated: "2025-07-01T00:00:00Z",
-    //     },
-    //     {
-    //         id: "7",
-    //         name: "Test Suite",
-    //         version: "12",
-    //         platform: "iOS",
-    //         isCurrentVersion: false,
-    //         status: "Active",
-    //         lastUpdated: "2025-03-26T00:00:00Z",
-    //     },
-    //     {
-    //         id: "8",
-    //         name: "Quality Assurance",
-    //         version: "1.5.2",
-    //         platform: "Desktop",
-    //         isCurrentVersion: false,
-    //         status: "Active",
-    //         lastUpdated: "2025-03-26T00:00:00Z",
-    //     },
-    //     {
-    //         id: "9",
-    //         name: "AutoMark",
-    //         version: "1.0.0",
-    //         platform: "Desktop",
-    //         isCurrentVersion: false,
-    //         status: "Active",
-    //         lastUpdated: "2025-03-06T00:00:00Z",
-    //     },
-    // ];
-
-   
-    import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
     Monitor,
     Plus,
@@ -108,6 +22,7 @@ import { useAuth } from "@contexts/AuthContext";
 import { securityService, SoftwareDetail } from "@services/securityApi";
 import SoftwareModal from "@components/models/SoftwareModal";
 import ConfirmDialog from "@components/models/ConfirmDialog";
+import { Pagination } from "@/components/ui/Pagination";
 
 const SoftwareManagement: React.FC = () => {
     const { user, hasPermission, isLoading: authLoading } = useAuth();
@@ -116,6 +31,10 @@ const SoftwareManagement: React.FC = () => {
     const [loadingData, setLoadingData] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
 
     // Modal states
     const [softwareModal, setSoftwareModal] = useState<{
@@ -174,6 +93,27 @@ const SoftwareManagement: React.FC = () => {
             fetchData();
         }
     }, [authLoading, fetchData]);
+
+    const filteredAndPaginatedSoftWare = useMemo(() => {
+        const filtered = software.filter(
+            (s) =>
+                s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                s.version.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                s.platform.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        const totalItems = filtered.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const data = filtered.slice(startIndex, endIndex);
+
+        return {
+            data,
+            totalItems,
+            totalPages,
+        };
+    }, [software, searchTerm, currentPage, itemsPerPage]);
 
     // Software handlers
     const handleViewSoftware = (software: SoftwareDetail) => {
@@ -236,14 +176,6 @@ const SoftwareManagement: React.FC = () => {
     };
 
     const dismissError = () => setError(null);
-
-    // Filter software based on search term
-    const filteredSoftware = software.filter(
-        (s) =>
-            s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            s.version.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            s.platform.toLowerCase().includes(searchTerm.toLowerCase())
-    );
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -406,10 +338,10 @@ const SoftwareManagement: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {filteredSoftware.map((software, index) => (
+                                {filteredAndPaginatedSoftWare.data.map((software, index) => (
                                     <tr key={software.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {index + 1}
+                                            {(currentPage - 1) * itemsPerPage + index + 1}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
@@ -481,34 +413,16 @@ const SoftwareManagement: React.FC = () => {
 
                     {/* Pagination */}
                     <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                        <div className="flex-1 flex justify-between sm:hidden">
-                            <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                                Previous
-                            </button>
-                            <button className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                                Next
-                            </button>
-                        </div>
-                        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                            <div>
-                                <p className="text-sm text-gray-700">
-                                    Showing <span className="font-medium">1</span> to{" "}
-                                    <span className="font-medium">{filteredSoftware.length}</span> of{" "}
-                                    <span className="font-medium">{filteredSoftware.length}</span> results
-                                </p>
-                            </div>
-                            <div>
-                                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                                    <button className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                                        1
-                                    </button>
-                                    <select className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                                        <option>20</option>
-                                        <option>50</option>
-                                        <option>100</option>
-                                    </select>
-                                </nav>
-                            </div>
+                        <div className="flex-1 flex justify-center ">
+                            {filteredAndPaginatedSoftWare.totalPages > 1 && (
+                                <div className="mt-4 flex justify-center">
+                                    <Pagination
+                                        currentPage={currentPage}
+                                        totalPages={filteredAndPaginatedSoftWare.totalPages}
+                                        onPageChange={setCurrentPage}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

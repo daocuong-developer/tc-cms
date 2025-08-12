@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
     Users,
     Plus,
@@ -20,6 +20,7 @@ import {
 import { CustomerDetail, securityService } from "@services/securityApi";
 import CustomerModel from "@components/models/CustomerModel";
 import ConfirmDialog from "@components/models/ConfirmDialog";
+import { Pagination } from "@/components/ui/Pagination";
 
 const CustomerManagement: React.FC = () => {
     const [customers, setCustomers] = useState<CustomerDetail[]>([]);
@@ -29,6 +30,11 @@ const CustomerManagement: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetail | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+
     const [deleteDialog, setDeleteDialog] = useState<{
         isOpen: boolean;
         customer: CustomerDetail | null;
@@ -52,6 +58,46 @@ const CustomerManagement: React.FC = () => {
     useEffect(() => {
         fetchCustomers();
     }, []);
+
+    // Filter and Panigation
+    const filteredAndPaginatedCustomer = useMemo(() => {
+        const filtered = customers.filter((customer) => {
+            const matchesSearch =
+                customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (customer.phone && customer.phone.includes(searchTerm)) ||
+                (customer.organization && customer.organization.toLowerCase().includes(searchTerm.toLowerCase()));
+
+            const matchesPhoneFilter =
+                filters.hasPhone === "" ||
+                (filters.hasPhone === "yes" && customer.phone) ||
+                (filters.hasPhone === "no" && !customer.phone);
+
+            const matchesDeviceFilter =
+                filters.hasDevice === "" ||
+                (filters.hasDevice === "yes" && customer.deviceName) ||
+                (filters.hasDevice === "no" && !customer.deviceName);
+
+            const matchesOrgFilter =
+                filters.hasOrganization === "" ||
+                (filters.hasOrganization === "yes" && customer.organization) ||
+                (filters.hasOrganization === "no" && !customer.organization);
+
+            return matchesSearch && matchesPhoneFilter && matchesDeviceFilter && matchesOrgFilter;
+        });
+
+        const totalItems = filtered.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const data = filtered.slice(startIndex, endIndex);
+
+        return {
+            data,
+            totalItems,
+            totalPages,
+        };
+    }, [customers, searchTerm, currentPage, itemsPerPage]);
 
     const fetchCustomers = async () => {
         try {
@@ -154,30 +200,30 @@ const CustomerManagement: React.FC = () => {
         setSearchTerm("");
     };
 
-    const filteredCustomers = customers.filter((customer) => {
-        const matchesSearch =
-            customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (customer.phone && customer.phone.includes(searchTerm)) ||
-            (customer.organization && customer.organization.toLowerCase().includes(searchTerm.toLowerCase()));
+    // const filteredCustomers = customers.filter((customer) => {
+    //     const matchesSearch =
+    //         customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    //         customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    //         (customer.phone && customer.phone.includes(searchTerm)) ||
+    //         (customer.organization && customer.organization.toLowerCase().includes(searchTerm.toLowerCase()));
 
-        const matchesPhoneFilter =
-            filters.hasPhone === "" ||
-            (filters.hasPhone === "yes" && customer.phone) ||
-            (filters.hasPhone === "no" && !customer.phone);
+    //     const matchesPhoneFilter =
+    //         filters.hasPhone === "" ||
+    //         (filters.hasPhone === "yes" && customer.phone) ||
+    //         (filters.hasPhone === "no" && !customer.phone);
 
-        const matchesDeviceFilter =
-            filters.hasDevice === "" ||
-            (filters.hasDevice === "yes" && customer.deviceName) ||
-            (filters.hasDevice === "no" && !customer.deviceName);
+    //     const matchesDeviceFilter =
+    //         filters.hasDevice === "" ||
+    //         (filters.hasDevice === "yes" && customer.deviceName) ||
+    //         (filters.hasDevice === "no" && !customer.deviceName);
 
-        const matchesOrgFilter =
-            filters.hasOrganization === "" ||
-            (filters.hasOrganization === "yes" && customer.organization) ||
-            (filters.hasOrganization === "no" && !customer.organization);
+    //     const matchesOrgFilter =
+    //         filters.hasOrganization === "" ||
+    //         (filters.hasOrganization === "yes" && customer.organization) ||
+    //         (filters.hasOrganization === "no" && !customer.organization);
 
-        return matchesSearch && matchesPhoneFilter && matchesDeviceFilter && matchesOrgFilter;
-    });
+    //     return matchesSearch && matchesPhoneFilter && matchesDeviceFilter && matchesOrgFilter;
+    // });
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString("en-US", {
@@ -346,7 +392,8 @@ const CustomerManagement: React.FC = () => {
                         Total: <strong className="text-gray-900">{customers.length}</strong> customers
                     </span>
                     <span>
-                        Showing: <strong className="text-gray-900">{filteredCustomers.length}</strong> customers
+                        Showing: <strong className="text-gray-900">{filteredAndPaginatedCustomer.length}</strong>{" "}
+                        customers
                     </span>
                     {(searchTerm || Object.values(filters).some((f) => f)) && (
                         <span className="text-blue-600">Filters active</span>
@@ -378,7 +425,7 @@ const CustomerManagement: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredCustomers.length === 0 ? (
+                            {filteredAndPaginatedCustomer.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="px-6 py-16 text-center">
                                         <div className="flex flex-col items-center">
@@ -399,7 +446,7 @@ const CustomerManagement: React.FC = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredCustomers.map((customer) => (
+                                filteredAndPaginatedCustomer.data.map((customer) => (
                                     <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
@@ -475,6 +522,21 @@ const CustomerManagement: React.FC = () => {
                             )}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                    <div className="flex-1 flex justify-center ">
+                        {filteredAndPaginatedCustomer.totalPages > 1 && (
+                            <div className="mt-4 flex justify-center">
+                                <Pagination
+                                    currentPage={currentPage}
+                                    totalPages={filteredAndPaginatedCustomer.totalPages}
+                                    onPageChange={setCurrentPage}
+                                />
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 

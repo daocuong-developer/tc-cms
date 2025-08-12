@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
     FileText,
     Plus,
@@ -23,6 +23,7 @@ import { useAuth } from "@contexts/AuthContext";
 import { securityService, ContractDetail } from "@services/securityApi";
 import ContractModal from "@components/models/ContractModal";
 import ConfirmDialog from "@components/models/ConfirmDialog";
+import { Pagination } from "@/components/ui/Pagination";
 
 const ContractManagement: React.FC = () => {
     const { user, hasPermission, isLoading: authLoading } = useAuth();
@@ -31,6 +32,10 @@ const ContractManagement: React.FC = () => {
     const [loadingData, setLoadingData] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
 
     // Modal states
     const [contractModal, setContractModal] = useState<{
@@ -89,6 +94,31 @@ const ContractManagement: React.FC = () => {
             fetchData();
         }
     }, [authLoading, fetchData]);
+
+    
+    // Filter and Panigation
+    const filteredAndPaginatedContracts = useMemo(() => {
+        const filtered = contracts.filter(
+            (contract) =>
+                contract.customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                contract.customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (contract.customer.phone || "").includes(searchTerm) ||
+                (contract.deviceName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (contract.organization || "").toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        const totalItems = filtered.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const data = filtered.slice(startIndex, endIndex);
+
+        return {
+            data,
+            totalItems,
+            totalPages,
+        };
+    }, [contracts, searchTerm, currentPage, itemsPerPage]);
 
     // Contract handlers
     const handleViewContract = (contract: ContractDetail) => {
@@ -153,16 +183,6 @@ const ContractManagement: React.FC = () => {
     };
 
     const dismissError = () => setError(null);
-
-    // Filter contracts based on search term
-    const filteredContracts = contracts.filter(
-        (contract) =>
-            contract.customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            contract.customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (contract.customer.phone && contract.customer.phone.includes(searchTerm)) ||
-            contract.deviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (contract.organization && contract.organization.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -332,10 +352,10 @@ const ContractManagement: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {filteredContracts.map((contract, index) => (
+                                {filteredAndPaginatedContracts.data.map((contract, index) => (
                                     <tr key={contract.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {index + 1}
+                                            {(currentPage - 1) * itemsPerPage + index + 1}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div>
@@ -414,34 +434,16 @@ const ContractManagement: React.FC = () => {
 
                     {/* Pagination */}
                     <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                        <div className="flex-1 flex justify-between sm:hidden">
-                            <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                                Previous
-                            </button>
-                            <button className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                                Next
-                            </button>
-                        </div>
-                        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                            <div>
-                                <p className="text-sm text-gray-700">
-                                    Showing <span className="font-medium">1</span> to{" "}
-                                    <span className="font-medium">{filteredContracts.length}</span> of{" "}
-                                    <span className="font-medium">{filteredContracts.length}</span> results
-                                </p>
-                            </div>
-                            <div>
-                                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                                    <button className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                                        1
-                                    </button>
-                                    <select className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                                        <option>20</option>
-                                        <option>50</option>
-                                        <option>100</option>
-                                    </select>
-                                </nav>
-                            </div>
+                        <div className="flex-1 flex justify-center ">
+                            {filteredAndPaginatedContracts.totalPages > 1 && (
+                                <div className="mt-4 flex justify-center">
+                                    <Pagination
+                                        currentPage={currentPage}
+                                        totalPages={filteredAndPaginatedContracts.totalPages}
+                                        onPageChange={setCurrentPage}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
