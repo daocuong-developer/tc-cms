@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import ContentHeader from "@/components/ui/ContentHeader";
 import {
     Building,
@@ -20,6 +20,8 @@ import { securityService, OrganizationDetail, DepartmentDetail } from "@services
 import OrganizationModal from "@components/models/OrganizationModal";
 import DepartmentModal from "@components/models/DepartmentModal";
 import ConfirmDialog from "@components/models/ConfirmDialog";
+import { Pagination } from "@/components/ui/Pagination";
+import { SearchInput } from "@/components/ui/SearchInput";
 
 const OrganizationManagement: React.FC = () => {
     const { user, hasPermission, isLoading: authLoading } = useAuth();
@@ -32,6 +34,15 @@ const OrganizationManagement: React.FC = () => {
     const [loadingData, setLoadingData] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = useMemo(
+        () => ({
+            organizations: 6,
+            departments: 6,
+        }),
+        []
+    );
 
     // Modal states
     const [organizationModal, setOrganizationModal] = useState<{
@@ -74,46 +85,31 @@ const OrganizationManagement: React.FC = () => {
         try {
             const promises = [];
 
-            if (activeTab === "organizations" && hasPermission("view_organization")) {
-                promises.push(securityService.getOrganizations());
+            if (hasPermission("view_organization")) {
+                promises.push(securityService.getOrganizations().then(setOrganizations));
             }
-            if (activeTab === "departments" && hasPermission("view_department")) {
-                promises.push(securityService.getDepartments(true));
+            if (hasPermission("view_department")) {
+                promises.push(securityService.getDepartments(true).then(setDepartments));
             }
 
-            const results = await Promise.all(promises);
-
-            if (activeTab === "organizations") {
-                setOrganizations(results[0] || []);
-            } else if (activeTab === "departments") {
-                setDepartments(results[0] || []);
-            }
+            await Promise.all(promises);
         } catch (err) {
             console.error("Failed to fetch data:", err);
             setError("Failed to load data. Please try again.");
         } finally {
             setLoadingData(false);
         }
-    }, [activeTab, hasPermission]);
+    }, [hasPermission]);
 
     const fetchAllData = useCallback(async () => {
         setRefreshing(true);
         try {
-            const [orgsData, deptsData] = await Promise.all([
-                hasPermission("view_organization") ? securityService.getOrganizations() : Promise.resolve([]),
-                hasPermission("view_department") ? securityService.getDepartments(true) : Promise.resolve([]),
-            ]);
-
-            setOrganizations(orgsData);
-            setDepartments(deptsData);
+            await fetchData();
         } catch (err) {
-            console.error("Failed to refresh data:", err);
-            setError("Failed to refresh data. Please try again.");
         } finally {
             setRefreshing(false);
         }
-    }, [hasPermission]);
-
+    }, [fetchData]);
     useEffect(() => {
         if (!authLoading) {
             fetchData();
@@ -256,19 +252,52 @@ const OrganizationManagement: React.FC = () => {
 
     const dismissError = () => setError(null);
 
-    // Filter data based on search term
-    const filteredOrganizations = organizations.filter(
-        (org) =>
-            org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            org.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredAndPaginatedOrganizations = useMemo(() => {
+        // Lọc organizations dựa trên searchTerm
+        const filteredOrganizations = organizations.filter((org) => {
+            const nameMatch = org.name.toLowerCase().includes(searchTerm.toLowerCase());
+            const descriptionMatch = org.description?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
 
-    const filteredDepartments = departments.filter(
-        (dept) =>
-            dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            dept.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (dept.organization as any)?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+            return nameMatch || descriptionMatch;
+        });
+
+        // Tính toán pagination
+        const totalItems = filteredOrganizations.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage.organizations);
+        const startIndex = (currentPage - 1) * itemsPerPage.organizations;
+        const endIndex = startIndex + itemsPerPage.organizations;
+        const data = filteredOrganizations.slice(startIndex, endIndex);
+
+        return {
+            data,
+            totalItems,
+            totalPages,
+        };
+    }, [organizations, currentPage, searchTerm, itemsPerPage]);
+
+    // Tương tự cho departments
+    const filteredAndPaginatedDepartments = useMemo(() => {
+        const filteredDepartments = departments.filter((dept) => {
+            const nameMatch = dept.name.toLowerCase().includes(searchTerm.toLowerCase());
+            const descriptionMatch = dept.description?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+            const organizationMatch =
+                (dept.organization as any)?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+
+            return nameMatch || descriptionMatch || organizationMatch;
+        });
+
+        const totalItems = filteredDepartments.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage.departments);
+        const startIndex = (currentPage - 1) * itemsPerPage.departments;
+        const endIndex = startIndex + itemsPerPage.departments;
+        const data = filteredDepartments.slice(startIndex, endIndex);
+
+        return {
+            data,
+            totalItems,
+            totalPages,
+        };
+    }, [departments, currentPage, searchTerm, itemsPerPage]);
 
     const tabCounts = {
         organizations: organizations.length,
@@ -304,18 +333,19 @@ const OrganizationManagement: React.FC = () => {
         });
     };
 
+    // Trong renderOrganizations(), thêm pagination sau phần grid:
     const renderOrganizations = () => (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-4">
                     <div className="relative">
-                        <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search organizations..."
+                        <SearchInput
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            onChange={(value) => {
+                                setSearchTerm(value);
+                                setCurrentPage(1);
+                            }}
+                            placeholder="Search organizations..."
                         />
                     </div>
                     <button className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
@@ -360,74 +390,90 @@ const OrganizationManagement: React.FC = () => {
                     </div>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredOrganizations.map((organization) => (
-                        <div
-                            key={organization.id}
-                            className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
-                        >
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center mr-3">
-                                        <Building className="h-6 w-6 text-white" />
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredAndPaginatedOrganizations.data.map((organization) => (
+                            <div
+                                key={organization.id}
+                                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+                            >
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="flex items-center">
+                                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center mr-3">
+                                            <Building className="h-6 w-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-lg font-medium text-gray-900">{organization.name}</h4>
+                                            <p className="text-sm text-gray-500">
+                                                Created {formatDateTime(organization.created_at)}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h4 className="text-lg font-medium text-gray-900">{organization.name}</h4>
-                                        <p className="text-sm text-gray-500">
-                                            Created {formatDateTime(organization.created_at)}
-                                        </p>
+                                    <div className="flex items-center space-x-1">
+                                        {hasPermission("view_organization") && (
+                                            <button
+                                                onClick={() => handleViewOrganization(organization)}
+                                                className="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors"
+                                                title="View organization"
+                                            >
+                                                <Eye className="h-4 w-4" />
+                                            </button>
+                                        )}
+                                        {hasPermission("change_organization") && (
+                                            <button
+                                                onClick={() => handleEditOrganization(organization)}
+                                                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+                                                title="Edit organization"
+                                            >
+                                                <Edit className="h-4 w-4" />
+                                            </button>
+                                        )}
+                                        {hasPermission("delete_organization") && (
+                                            <button
+                                                onClick={() => handleDeleteOrganization(organization)}
+                                                className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Delete organization"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
-                                <div className="flex items-center space-x-1">
-                                    {hasPermission("view_organization") && (
-                                        <button
-                                            onClick={() => handleViewOrganization(organization)}
-                                            className="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors"
-                                            title="View organization"
-                                        >
-                                            <Eye className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                    {hasPermission("change_organization") && (
-                                        <button
-                                            onClick={() => handleEditOrganization(organization)}
-                                            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
-                                            title="Edit organization"
-                                        >
-                                            <Edit className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                    {hasPermission("delete_organization") && (
-                                        <button
-                                            onClick={() => handleDeleteOrganization(organization)}
-                                            className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors"
-                                            title="Delete organization"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                </div>
+                                <p className="text-sm text-gray-600 mb-4">{organization.description}</p>
                             </div>
-                            <p className="text-sm text-gray-600 mb-4">{organization.description}</p>
+                        ))}
+                    </div>
+
+                    {/* Pagination */}
+                    <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                        <div className="flex-1 flex justify-center">
+                            {filteredAndPaginatedOrganizations.totalPages > 1 && (
+                                <div className="mt-4 flex justify-center">
+                                    <Pagination
+                                        currentPage={currentPage}
+                                        totalPages={filteredAndPaginatedOrganizations.totalPages}
+                                        onPageChange={setCurrentPage}
+                                    />
+                                </div>
+                            )}
                         </div>
-                    ))}
-                </div>
+                    </div>
+                </>
             )}
         </div>
     );
-
     const renderDepartments = () => (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-4">
                     <div className="relative">
-                        <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search departments..."
+                        <SearchInput
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                            onChange={(value) => {
+                                setSearchTerm(value);
+                                setCurrentPage(1);
+                            }}
+                            placeholder="Search by name, description, organization..."
                         />
                     </div>
                     <button className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
@@ -472,79 +518,96 @@ const OrganizationManagement: React.FC = () => {
                     </div>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {filteredDepartments.map((department) => (
-                        <div
-                            key={department.id}
-                            className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
-                        >
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center mr-3">
-                                        <Building2 className="h-6 w-6 text-white" />
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {filteredAndPaginatedDepartments.data.map((department) => (
+                            <div
+                                key={department.id}
+                                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+                            >
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="flex items-center">
+                                        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center mr-3">
+                                            <Building2 className="h-6 w-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-lg font-medium text-gray-900">{department.name}</h4>
+                                            <p className="text-sm text-gray-500">
+                                                {(department as any).organization?.name || "No organization"}
+                                            </p>
+                                            <p className="text-xs text-gray-400">{department.members || 0} members</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h4 className="text-lg font-medium text-gray-900">{department.name}</h4>
-                                        <p className="text-sm text-gray-500">
-                                            {(department as any).organization?.name || "No organization"}
-                                        </p>
-                                        <p className="text-xs text-gray-400">{department.members || 0} members</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                    {hasPermission("view_department") && (
-                                        <button
-                                            onClick={() => handleViewDepartment(department)}
-                                            className="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors"
-                                            title="View department"
-                                        >
-                                            <Eye className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                    {hasPermission("change_department") && (
-                                        <button
-                                            onClick={() => handleEditDepartment(department)}
-                                            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
-                                            title="Edit department"
-                                        >
-                                            <Edit className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                    {hasPermission("delete_department") && (
-                                        <button
-                                            onClick={() => handleDeleteDepartment(department)}
-                                            className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors"
-                                            title="Delete department"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                            <p className="text-sm text-gray-600 mb-4">{department.description}</p>
-                            {department.roles && department.roles.length > 0 && (
-                                <div className="space-y-2">
-                                    <p className="text-xs font-medium text-gray-500 uppercase">Assigned Roles</p>
-                                    <div className="flex flex-wrap gap-1">
-                                        {department.roles.slice(0, 3).map((role, index) => (
-                                            <span
-                                                key={index}
-                                                className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded"
+                                    <div className="flex items-center space-x-1">
+                                        {hasPermission("view_department") && (
+                                            <button
+                                                onClick={() => handleViewDepartment(department)}
+                                                className="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors"
+                                                title="View department"
                                             >
-                                                {role.name}
-                                            </span>
-                                        ))}
-                                        {department.roles.length > 3 && (
-                                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                                +{department.roles.length - 3} more
-                                            </span>
+                                                <Eye className="h-4 w-4" />
+                                            </button>
+                                        )}
+                                        {hasPermission("change_department") && (
+                                            <button
+                                                onClick={() => handleEditDepartment(department)}
+                                                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+                                                title="Edit department"
+                                            >
+                                                <Edit className="h-4 w-4" />
+                                            </button>
+                                        )}
+                                        {hasPermission("delete_department") && (
+                                            <button
+                                                onClick={() => handleDeleteDepartment(department)}
+                                                className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Delete department"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
                                         )}
                                     </div>
                                 </div>
+                                <p className="text-sm text-gray-600 mb-4">{department.description}</p>
+                                {department.roles && department.roles.length > 0 && (
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-medium text-gray-500 uppercase">Assigned Roles</p>
+                                        <div className="flex flex-wrap gap-1">
+                                            {department.roles.slice(0, 3).map((role, index) => (
+                                                <span
+                                                    key={index}
+                                                    className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded"
+                                                >
+                                                    {role.name}
+                                                </span>
+                                            ))}
+                                            {department.roles.length > 3 && (
+                                                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                                    +{department.roles.length - 3} more
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Pagination */}
+                    <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                        <div className="flex-1 flex justify-center">
+                            {filteredAndPaginatedDepartments.totalPages > 1 && (
+                                <div className="mt-4 flex justify-center">
+                                    <Pagination
+                                        currentPage={currentPage}
+                                        totalPages={filteredAndPaginatedDepartments.totalPages}
+                                        onPageChange={setCurrentPage}
+                                    />
+                                </div>
                             )}
                         </div>
-                    ))}
-                </div>
+                    </div>
+                </>
             )}
         </div>
     );
@@ -576,6 +639,7 @@ const OrganizationManagement: React.FC = () => {
                 title="Organization Management"
                 description="Manage organizations and departments to structure your company hierarchy and organize users effectively."
                 storageKey="organizationManagementHeaderClosed"
+                userId={user.id} // truyền id user
             />
 
             {/* Tab Navigation */}

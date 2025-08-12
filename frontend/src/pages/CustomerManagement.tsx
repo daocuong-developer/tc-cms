@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import ContentHeader from "@/components/ui/ContentHeader";
+import { useAuth } from "@/contexts/AuthContext";
+import { SearchInput } from "@/components/ui/SearchInput";
 import {
     Users,
     Plus,
@@ -21,17 +23,22 @@ import {
 import { CustomerDetail, securityService } from "@services/securityApi";
 import CustomerModel from "@components/models/CustomerModel";
 import ConfirmDialog from "@components/models/ConfirmDialog";
-import { useAuth } from "@contexts/AuthContext";
+import { Pagination } from "@/components/ui/Pagination";
 
 const CustomerManagement: React.FC = () => {
     const [customers, setCustomers] = useState<CustomerDetail[]>([]);
-    const { user } = useAuth(); // lấy user từ context
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetail | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { user } = useAuth(); // lấy user từ context
+
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+
     const [deleteDialog, setDeleteDialog] = useState<{
         isOpen: boolean;
         customer: CustomerDetail | null;
@@ -55,6 +62,46 @@ const CustomerManagement: React.FC = () => {
     useEffect(() => {
         fetchCustomers();
     }, []);
+
+    // Filter and Panigation
+    const filteredAndPaginatedCustomer = useMemo(() => {
+        const filtered = customers.filter((customer) => {
+            const matchesSearch =
+                customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (customer.phone && customer.phone.includes(searchTerm)) ||
+                (customer.organization && customer.organization.toLowerCase().includes(searchTerm.toLowerCase()));
+
+            const matchesPhoneFilter =
+                filters.hasPhone === "" ||
+                (filters.hasPhone === "yes" && customer.phone) ||
+                (filters.hasPhone === "no" && !customer.phone);
+
+            const matchesDeviceFilter =
+                filters.hasDevice === "" ||
+                (filters.hasDevice === "yes" && customer.deviceName) ||
+                (filters.hasDevice === "no" && !customer.deviceName);
+
+            const matchesOrgFilter =
+                filters.hasOrganization === "" ||
+                (filters.hasOrganization === "yes" && customer.organization) ||
+                (filters.hasOrganization === "no" && !customer.organization);
+
+            return matchesSearch && matchesPhoneFilter && matchesDeviceFilter && matchesOrgFilter;
+        });
+
+        const totalItems = filtered.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const data = filtered.slice(startIndex, endIndex);
+
+        return {
+            data,
+            totalItems,
+            totalPages,
+        };
+    }, [customers, searchTerm, currentPage, itemsPerPage, filters]);
 
     const fetchCustomers = async () => {
         try {
@@ -157,31 +204,6 @@ const CustomerManagement: React.FC = () => {
         setSearchTerm("");
     };
 
-    const filteredCustomers = customers.filter((customer) => {
-        const matchesSearch =
-            customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (customer.phone && customer.phone.includes(searchTerm)) ||
-            (customer.organization && customer.organization.toLowerCase().includes(searchTerm.toLowerCase()));
-
-        const matchesPhoneFilter =
-            filters.hasPhone === "" ||
-            (filters.hasPhone === "yes" && customer.phone) ||
-            (filters.hasPhone === "no" && !customer.phone);
-
-        const matchesDeviceFilter =
-            filters.hasDevice === "" ||
-            (filters.hasDevice === "yes" && customer.deviceName) ||
-            (filters.hasDevice === "no" && !customer.deviceName);
-
-        const matchesOrgFilter =
-            filters.hasOrganization === "" ||
-            (filters.hasOrganization === "yes" && customer.organization) ||
-            (filters.hasOrganization === "no" && !customer.organization);
-
-        return matchesSearch && matchesPhoneFilter && matchesDeviceFilter && matchesOrgFilter;
-    });
-
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString("en-US", {
             year: "numeric",
@@ -192,19 +214,17 @@ const CustomerManagement: React.FC = () => {
         });
     };
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-                    <p className="text-gray-600 font-medium">Loading customers...</p>
-                </div>
-            </div>
-        );
-    }
+    // if (loading) {
+    //     return (
+    //         <div className="flex items-center justify-center py-12">
+    //             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+    //             <span className="ml-2 text-gray-600">Loading...</span>
+    //         </div>
+    //     );
+    // }
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6">
             {/* Notification */}
             {notification && (
                 <div
@@ -224,123 +244,51 @@ const CustomerManagement: React.FC = () => {
             )}
 
             {/* Header */}
-<ContentHeader
-    title="Customer Management"
-    description="Manage customer information in the system"
-    storageKey="customerManagementHeaderClosed"
-    userId={user?.id} // truyền id user
-/>
-
-{/* Controls */}
-<div className="flex justify-between items-center">
-    <div className="flex items-center space-x-4">
-        <div className="relative">
-            <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-                type="text"
-                placeholder="Search customers..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            <ContentHeader
+                title="Customer Management"
+                description="Manage your customers, their devices, and organizations."
+                storageKey="customerManagementHeaderClosed"
+                userId={user?.id} // Assuming user context is available
             />
-        </div>
-        <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-        >
-            <Filter className="h-4 w-4 mr-2" />
-            Filter
-        </button>
-        <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-        >
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
-        </button>
-    </div>
-    <button
-        onClick={handleAddCustomer}
-        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-    >
-        <Plus className="h-4 w-4 mr-2" />
-        Add Customer
-    </button>
-</div>
 
-
-                {/* Filters */}
-                {showFilters && (
-                    <div className="mt-6 p-4 bg-gray-50 rounded-xl border-2 border-gray-100">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-semibold text-gray-900">Filter Options</h3>
-                            <button
-                                onClick={clearFilters}
-                                className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
-                            >
-                                <X className="w-4 h-4" />
-                                Clear All
-                            </button>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Has Phone</label>
-                                <select
-                                    value={filters.hasPhone}
-                                    onChange={(e) => setFilters((prev) => ({ ...prev, hasPhone: e.target.value }))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                >
-                                    <option value="">All</option>
-                                    <option value="yes">Yes</option>
-                                    <option value="no">No</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Has Device</label>
-                                <select
-                                    value={filters.hasDevice}
-                                    onChange={(e) => setFilters((prev) => ({ ...prev, hasDevice: e.target.value }))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                >
-                                    <option value="">All</option>
-                                    <option value="yes">Yes</option>
-                                    <option value="no">No</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Has Organization</label>
-                                <select
-                                    value={filters.hasOrganization}
-                                    onChange={(e) =>
-                                        setFilters((prev) => ({ ...prev, hasOrganization: e.target.value }))
-                                    }
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                >
-                                    <option value="">All</option>
-                                    <option value="yes">Yes</option>
-                                    <option value="no">No</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Stats */}
-                <div className="flex items-center gap-6 mt-6 pt-4 border-t border-gray-200 text-sm text-gray-600">
-                    <span>
-                        Total: <strong className="text-gray-900">{customers.length}</strong> customers
-                    </span>
-                    <span>
-                        Showing: <strong className="text-gray-900">{filteredCustomers.length}</strong> customers
-                    </span>
-                    {(searchTerm || Object.values(filters).some((f) => f)) && (
-                        <span className="text-blue-600">Filters active</span>
-                    )}
+            {/* Search and Controls */}
+            <div className="flex justify-between items-center">
+                <div className="flex items-center space-x-4">
+                    <SearchInput
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        placeholder="Search by customer name, email, phone, device, or organization"
+                        className="w-80"
+                    />
+                    <button className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        <Filter className="h-4 w-4 mr-2" />
+                        Filter
+                    </button>
+                    <button
+                        onClick={handleRefresh}
+                        disabled={refreshing}
+                        className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+                        Refresh
+                    </button>
                 </div>
-            {/* </div> */}
+                <button
+                    onClick={handleAddCustomer}
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Customer
+                </button>
+            </div>
 
             {/* Customer Table */}
+            {loading ? (
+                <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span className="ml-2 text-gray-600">Loading custormer...</span>
+                </div>
+            ) : (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
@@ -364,7 +312,7 @@ const CustomerManagement: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredCustomers.length === 0 ? (
+                            {filteredAndPaginatedCustomer.data.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="px-6 py-16 text-center">
                                         <div className="flex flex-col items-center">
@@ -385,7 +333,7 @@ const CustomerManagement: React.FC = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredCustomers.map((customer) => (
+                                filteredAndPaginatedCustomer.data.map((customer) => (
                                     <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
@@ -462,7 +410,23 @@ const CustomerManagement: React.FC = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination */}
+                <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                    <div className="flex-1 flex justify-center ">
+                        {filteredAndPaginatedCustomer.totalPages > 1 && (
+                            <div className="mt-4 flex justify-center">
+                                <Pagination
+                                    currentPage={currentPage}
+                                    totalPages={filteredAndPaginatedCustomer.totalPages}
+                                    onPageChange={setCurrentPage}
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
+            )}
 
             {/* Customer Modal */}
             <CustomerModel

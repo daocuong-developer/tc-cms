@@ -1,19 +1,7 @@
 import React, { useState, useEffect } from "react";
-import {
-    X,
-    User,
-    Mail,
-    Phone,
-    Building,
-    Monitor,
-    Save,
-    AlertCircle,
-    CheckCircle,
-    Users,
-    Building2,
-} from "lucide-react";
+import { X, User, Mail, Phone, Building, Monitor, Save, AlertCircle, CheckCircle, Building2 } from "lucide-react";
 
-import { CustomerDetail, DepartmentDetail, GroupDetail, securityService } from "@services/securityApi";
+import { CustomerDetail, securityService } from "@services/securityApi";
 
 interface CustomerModelProps {
     isOpen: boolean;
@@ -23,23 +11,14 @@ interface CustomerModelProps {
     isLoading: boolean;
 }
 
-const CustomerModel: React.FC<CustomerModelProps> = ({
-    isOpen,
-    onClose,
-    customer,
-    onSave,
-    isLoading,
-}) => {
+const CustomerModel: React.FC<CustomerModelProps> = ({ isOpen, onClose, customer, onSave, isLoading }) => {
     const [formData, setFormData] = useState({
         customerName: "",
         email: "",
         phone: "",
         deviceName: "",
-        department_id: "",
-        group_id: "",
+        organization: "",
     });
-    const [departments, setDepartments] = useState<DepartmentDetail[]>([]);
-    const [groups, setGroups] = useState<GroupDetail[]>([]);
     const [loadingData, setLoadingData] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [notification, setNotification] = useState<{
@@ -48,20 +27,13 @@ const CustomerModel: React.FC<CustomerModelProps> = ({
     } | null>(null);
 
     useEffect(() => {
-        if (isOpen) {
-            fetchDepartmentsAndGroups();
-        }
-    }, [isOpen]);
-
-    useEffect(() => {
         if (customer) {
             setFormData({
                 customerName: customer.customerName || "",
                 email: customer.email || "",
                 phone: customer.phone || "",
                 deviceName: customer.deviceName || "",
-                department_id: customer.department?.id || "",
-                group_id: customer.group?.id || "",
+                organization: customer.organization || "",
             });
         } else {
             setFormData({
@@ -69,30 +41,12 @@ const CustomerModel: React.FC<CustomerModelProps> = ({
                 email: "",
                 phone: "",
                 deviceName: "",
-                department_id: "",
-                group_id: "",
+                organization: "",
             });
         }
         setErrors({});
         setNotification(null);
     }, [customer, isOpen]);
-
-    const fetchDepartmentsAndGroups = async () => {
-        try {
-            setLoadingData(true);
-            const [departmentsData, groupsData] = await Promise.all([
-                securityService.getDepartments(true), 
-                securityService.getGroups(),
-            ]);
-            setDepartments(departmentsData);
-            setGroups(groupsData);
-        } catch (error) {
-            console.error("Error fetching departments and groups:", error);
-            showNotification("error", "Failed to load departments and groups");
-        } finally {
-            setLoadingData(false);
-        }
-    };
 
     const showNotification = (type: "success" | "error", message: string) => {
         setNotification({ type, message });
@@ -112,22 +66,13 @@ const CustomerModel: React.FC<CustomerModelProps> = ({
             newErrors.email = "Please enter a valid email address";
         }
 
-        // Validate department or group selection
-        if (!formData.department_id && !formData.group_id) {
-            newErrors.department_group = "Customer must belong to either a Department or a Group";
-        }
-
-        if (formData.department_id && formData.group_id) {
-            newErrors.department_group = "Customer cannot belong to both Department and Group simultaneously";
-        }
-
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (!validateForm()) {
             showNotification("error", "Please fix the errors below");
             return;
@@ -139,8 +84,7 @@ const CustomerModel: React.FC<CustomerModelProps> = ({
                 email: formData.email.trim(),
                 phone: formData.phone.trim() || null,
                 deviceName: formData.deviceName.trim() || null,
-                department_id: formData.department_id || null,
-                group_id: formData.group_id || null,
+                organization: formData.organization.trim() || null,
             };
 
             await onSave(submitData);
@@ -151,38 +95,17 @@ const CustomerModel: React.FC<CustomerModelProps> = ({
     };
 
     const handleInputChange = (field: string, value: string) => {
-        setFormData(prev => {
+        setFormData((prev) => {
             const newData = { ...prev, [field]: value };
-            
-            // Clear the other field when one is selected
-            if (field === "department_id" && value) {
-                newData.group_id = "";
-            } else if (field === "group_id" && value) {
-                newData.department_id = "";
-            }
-            
             return newData;
         });
-        
-        if (errors[field] || errors.department_group) {
-            setErrors(prev => ({ 
-                ...prev, 
+
+        if (errors[field]) {
+            setErrors((prev) => ({
+                ...prev,
                 [field]: "",
-                department_group: ""
             }));
         }
-    };
-
-    const getSelectedOrganization = () => {
-        if (formData.department_id) {
-            const dept = departments.find(d => d.id === formData.department_id);
-            return dept ? "From Department" : "";
-        }
-        if (formData.group_id) {
-            const group = groups.find(g => g.id === formData.group_id);
-            return group ? "From Group" : "";
-        }
-        return "";
     };
 
     if (!isOpen) return null;
@@ -240,7 +163,7 @@ const CustomerModel: React.FC<CustomerModelProps> = ({
                         <div className="flex items-center justify-center py-12">
                             <div className="flex flex-col items-center gap-4">
                                 <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent"></div>
-                                <p className="text-gray-600">Loading departments and groups...</p>
+                                <p className="text-gray-600">Loading data...</p>
                             </div>
                         </div>
                     ) : (
@@ -303,9 +226,7 @@ const CustomerModel: React.FC<CustomerModelProps> = ({
 
                             {/* Phone Field */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Phone Number
-                                </label>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
                                 <div className="relative">
                                     <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                                     <input
@@ -321,9 +242,7 @@ const CustomerModel: React.FC<CustomerModelProps> = ({
 
                             {/* Device Name Field */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Device Name
-                                </label>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Device Name</label>
                                 <div className="relative">
                                     <Monitor className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                                     <input
@@ -337,95 +256,21 @@ const CustomerModel: React.FC<CustomerModelProps> = ({
                                 </div>
                             </div>
 
-                            {/* Department and Group Selection */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Department Select Field */}
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                        Department
-                                    </label>
-                                    <div className="relative">
-                                        <Building2 className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                        <select
-                                            value={formData.department_id}
-                                            onChange={(e) => handleInputChange("department_id", e.target.value)}
-                                            className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none bg-white ${
-                                                errors.department_group
-                                                    ? "border-red-300 bg-red-50"
-                                                    : "border-gray-200 hover:border-gray-300"
-                                            }`}
-                                            disabled={isLoading || !!formData.group_id}
-                                        >
-                                            <option value="">Select Department</option>
-                                            {departments.map((dept) => (
-                                                <option key={dept.id} value={dept.id}>
-                                                    {dept.name} ({dept.members} members)
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    {formData.group_id && (
-                                        <p className="mt-1 text-xs text-gray-500">
-                                            Disabled because Group is selected
-                                        </p>
-                                    )}
-                                </div>
-
-                                {/* Group Select Field */}
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                        Group
-                                    </label>
-                                    <div className="relative">
-                                        <Users className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                        <select
-                                            value={formData.group_id}
-                                            onChange={(e) => handleInputChange("group_id", e.target.value)}
-                                            className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none bg-white ${
-                                                errors.department_group
-                                                    ? "border-red-300 bg-red-50"
-                                                    : "border-gray-200 hover:border-gray-300"
-                                            }`}
-                                            disabled={isLoading || !!formData.department_id}
-                                        >
-                                            <option value="">Select Group</option>
-                                            {groups.map((group) => (
-                                                <option key={group.id} value={group.id}>
-                                                    {group.name} ({group.members} members)
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    {formData.department_id && (
-                                        <p className="mt-1 text-xs text-gray-500">
-                                            Disabled because Department is selected
-                                        </p>
-                                    )}
+                            {/* Organization Field (New) */}
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Organization</label>
+                                <div className="relative">
+                                    <Building2 className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        value={formData.organization}
+                                        onChange={(e) => handleInputChange("organization", e.target.value)}
+                                        className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-300 transition-all"
+                                        placeholder="Enter organization name (optional)"
+                                        disabled={isLoading}
+                                    />
                                 </div>
                             </div>
-
-                            {/* Department/Group Selection Error */}
-                            {errors.department_group && (
-                                <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
-                                    <p className="text-sm text-red-600 flex items-center gap-2">
-                                        <AlertCircle className="w-4 h-4" />
-                                        {errors.department_group}
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Organization Display */}
-                            {getSelectedOrganization() && (
-                                <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                                    <div className="flex items-center gap-2">
-                                        <Building className="w-5 h-5 text-blue-600" />
-                                        <div>
-                                            <p className="text-sm font-medium text-blue-900">Organization</p>
-                                            <p className="text-sm text-blue-700">{getSelectedOrganization()}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
 
                             {/* Form Actions */}
                             <div className="flex items-center justify-end gap-4 pt-6 border-t border-gray-200">

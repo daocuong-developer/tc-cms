@@ -52,6 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             "organizationManagerHeaderClosed",
             "roleListHeaderClosed",
             "securityManagementHeaderClosed",
+            "contractManagementHeaderClosed",
         ];
         headerKeys.forEach(key => {
             localStorage.removeItem(`${key}_${response.user.id}`);

@@ -73,43 +73,9 @@ class RoleSerializer(serializers.ModelSerializer):
         return obj.users.count()
 
 class CustomerSerializer(serializers.ModelSerializer):
-    department = DepartmentNestedSerializer(read_only=True)
-    group = GroupNestedSerializer(read_only=True)
-    
-    department_id = serializers.PrimaryKeyRelatedField(
-        queryset=Department.objects.all(), source='department', write_only=True, required=False, allow_null=True
-    )
-    group_id = serializers.PrimaryKeyRelatedField(
-        queryset=Group.objects.all(), source='group', write_only=True, required=False, allow_null=True
-    )
-
-    organization = serializers.SerializerMethodField()
-
     class Meta:
         model = Customer
-        fields = ['id', 'customerName', 'email', 'phone', 'deviceName', 
-                  'department', 'department_id', 'group', 'group_id', 'organization']
-    
-    def validate(self, data):
-        department = data.get('department')
-        group = data.get('group')
-        
-        # Kiểm tra nếu cả hai trường đều được điền
-        if department and group:
-            raise ValidationError("A customer cannot belong to both a Department and a Group simultaneously.")
-
-        # Kiểm tra nếu cả hai trường đều trống
-        if not department and not group:
-            raise ValidationError("A customer must belong to either a Department or a Group.")
-            
-        return data
-    
-    def get_organization(self, obj):
-        if obj.department and obj.department.organization:
-            return obj.department.organization.name
-        if obj.group and obj.group.organization:
-            return obj.group.organization.name
-        return None
+        fields = ['id', 'customerName', 'email', 'phone', 'deviceName', 'organization']
 
 class ContractSerializer(serializers.ModelSerializer):
     customer = CustomerSerializer(read_only=True)
@@ -118,27 +84,16 @@ class ContractSerializer(serializers.ModelSerializer):
     )
 
     customer_device_name = serializers.CharField(source='customer.deviceName', read_only=True)
-    customer_organization = serializers.SerializerMethodField()
-
+    customer_organization = serializers.CharField(source='customer.organization', read_only=True)
     class Meta:
         model = Contract
         fields = ['id', 'timesMarked', 'startDate', 'endDate', 'status', 
                   'customer', 'customer_id', 'customer_device_name', 'customer_organization']
         
-    def get_customer_organization(self, obj):
-        if obj.customer.department and obj.customer.department.organization:
-            return obj.customer.department.organization.name
-        if obj.customer.group and obj.customer.group.organization:
-            return obj.customer.group.organization.name
-        return None
-
-
 class SoftwareSerialzer(serializers.ModelSerializer):
     class Meta:
         model = Software
         fields = '__all__'
-    
-
 
 class UserNestedSerializer(serializers.ModelSerializer):
     class Meta:

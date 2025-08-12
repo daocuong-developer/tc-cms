@@ -1,5 +1,5 @@
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import ContentHeader from "@/components/ui/ContentHeader";
-import React, { useState, useEffect, useCallback, useMemo } from "react"; // Added useMemo
 import {
     Monitor,
     Plus,
@@ -18,13 +18,15 @@ import {
     Download,
     Smartphone,
     Laptop,
-    ChevronLeft, // Import ChevronLeft
-    ChevronRight, // Import ChevronRight
+    ChevronLeft,
+    ChevronRight,
+    ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@contexts/AuthContext";
 import { securityService, SoftwareDetail } from "@services/securityApi";
 import SoftwareModal from "@components/models/SoftwareModal";
 import ConfirmDialog from "@components/models/ConfirmDialog";
+import { Pagination } from "@/components/ui/Pagination";
 
 const SoftwareManagement: React.FC = () => {
     const { user, hasPermission, isLoading: authLoading } = useAuth();
@@ -36,7 +38,15 @@ const SoftwareManagement: React.FC = () => {
 
     // Pagination states
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(20); // Default items per page
+    const itemsPerPage = 10;
+
+    // Filter states - these were removed for now to match the ContractManagement.tsx layout
+    // const [showFilters, setShowFilters] = useState(false);
+    // const [filters, setFilters] = useState({
+    //     status: "",
+    //     platform: "",
+    //     currentVersion: "",
+    // });
 
     // Modal states
     const [softwareModal, setSoftwareModal] = useState<{
@@ -82,7 +92,6 @@ const SoftwareManagement: React.FC = () => {
         try {
             const softwareData = await securityService.getSoftware();
             setSoftware(softwareData);
-            setCurrentPage(1); // Reset to first page on refresh
         } catch (err) {
             console.error("Failed to refresh software:", err);
             setError("Failed to refresh software. Please try again.");
@@ -96,6 +105,47 @@ const SoftwareManagement: React.FC = () => {
             fetchData();
         }
     }, [authLoading, fetchData]);
+
+    const filteredAndPaginatedSoftWare = useMemo(() => {
+        const filtered = software.filter((s) => {
+            const matchesSearch =
+                s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                s.version.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                s.platform.toLowerCase().includes(searchTerm.toLowerCase());
+
+            // Filters are commented out to match the ContractManagement.tsx file
+            // const matchesStatusFilter =
+            //     filters.status === "" || s.status === filters.status;
+            //
+            // const matchesPlatformFilter =
+            //     filters.platform === "" || s.platform === filters.platform;
+            //
+            // const matchesVersionFilter =
+            //     filters.currentVersion === "" ||
+            //     (filters.currentVersion === "yes" && s.isCurrentVersion) ||
+            //     (filters.currentVersion === "no" && !s.isCurrentVersion);
+            //
+            // return matchesSearch && matchesStatusFilter && matchesPlatformFilter && matchesVersionFilter;
+            return matchesSearch;
+        });
+
+        const totalItems = filtered.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const data = filtered.slice(startIndex, endIndex);
+
+        return {
+            data,
+            totalItems,
+            totalPages,
+        };
+    }, [software, searchTerm, currentPage, itemsPerPage]);
+
+    const clearFilters = () => {
+        // This function is now simplified as there are no filters
+        setSearchTerm("");
+    };
 
     // Software handlers
     const handleViewSoftware = (software: SoftwareDetail) => {
@@ -158,34 +208,6 @@ const SoftwareManagement: React.FC = () => {
     };
 
     const dismissError = () => setError(null);
-
-    // Filter software based on search term
-    const filteredSoftware = useMemo(() => {
-        return software.filter(
-            (s) =>
-                s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                s.version.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                s.platform.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [software, searchTerm]);
-
-    // Pagination calculations
-    const totalItems = filteredSoftware.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-    const paginatedSoftware = filteredSoftware.slice(startIndex, endIndex);
-
-    const handlePageChange = (page: number) => {
-        if (page >= 1 && page <= totalPages) {
-            setCurrentPage(page);
-        }
-    };
-
-    const handleItemsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setItemsPerPage(Number(e.target.value));
-        setCurrentPage(1); // Reset to first page when items per page changes
-    };
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -258,7 +280,7 @@ const SoftwareManagement: React.FC = () => {
                 userId={user?.id}
             />
 
-            {/* Controls */}
+            {/* Search and Controls */}
             <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-4">
                     <div className="relative">
@@ -267,32 +289,20 @@ const SoftwareManagement: React.FC = () => {
                             type="text"
                             placeholder="Search software..."
                             value={searchTerm}
-                            onChange={(e) => {
-                                setSearchTerm(e.target.value);
-                                setCurrentPage(1); // Reset to first page on search
-                            }}
-                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                     </div>
+                    {/* The Filter button is for consistency with the ContractManagement file, but doesn't do anything yet */}
                     <button className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-                        <Filter className="h-4 w-4 mr-2" />
-                        Filter
+                        <Filter className="h-4 w-4 mr-2" /> Filter
                     </button>
-                    <button
-                        onClick={refreshData}
-                        disabled={refreshing}
-                        className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-                    >
-                        <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-                        Refresh
+                    <button onClick={refreshData} disabled={refreshing} className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50" >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} /> Refresh
                     </button>
                 </div>
-                <button
-                    onClick={handleCreateSoftware}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Software
+                <button onClick={handleCreateSoftware} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" >
+                    <Plus className="h-4 w-4 mr-2" /> Add Software
                 </button>
             </div>
 
@@ -304,212 +314,102 @@ const SoftwareManagement: React.FC = () => {
                         <div className="flex-1">
                             <p className="text-red-700">{error}</p>
                         </div>
-                        <button onClick={dismissError} className="text-red-400 hover:text-red-600">
+                        <button
+                            onClick={dismissError}
+                            className="text-red-400 hover:text-red-600 focus:outline-none"
+                        >
                             <X className="h-4 w-4" />
                         </button>
                     </div>
                 </div>
             )}
-
+            
             {/* Table */}
             {loadingData ? (
                 <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                    <span className="ml-2 text-gray-600">Loading software...</span>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span className="ml-2 text-gray-600">Loading data...</span>
+                </div>
+            ) : filteredAndPaginatedSoftWare.data.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                    <Monitor className="h-12 w-12 mx-auto mb-4" />
+                    <h3 className="font-semibold text-xl">Không tìm thấy phần mềm</h3>
+                    <p className="mt-2">Thêm một phần mềm mới hoặc điều chỉnh tìm kiếm của bạn.</p>
                 </div>
             ) : (
-                <div className="bg-white rounded-lg shadow overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        #
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Software Name
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Version
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Platform
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Current Version
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Status
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Last Updated
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Actions
-                                    </th>
+                <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Tên phần mềm
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Phiên bản
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Nền tảng
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Trạng thái
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Cập nhật lần cuối
+                                </th>
+                                <th className="relative px-6 py-3">
+                                    <span className="sr-only">Actions</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {filteredAndPaginatedSoftWare.data.map((s) => (
+                                <tr key={s.id}>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="text-sm font-medium text-gray-900">{s.name}</div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="text-sm text-gray-900">{s.version}</div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex items-center">
+                                            {getPlatformIcon(s.platform)}
+                                            <span className="ml-2 text-sm text-gray-900">{s.platform}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        {getStatusBadge(s.status)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="text-sm text-gray-900">{formatDateTime(s.lastUpdated)}</div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <div className="flex items-center justify-end space-x-2">
+                                            <button onClick={() => handleViewSoftware(s)} className="text-blue-600 hover:text-blue-900">
+                                                <Eye className="w-5 h-5" />
+                                            </button>
+                                            <button onClick={() => handleEditSoftware(s)} className="text-indigo-600 hover:text-indigo-900">
+                                                <Edit className="w-5 h-5" />
+                                            </button>
+                                            <button onClick={() => handleDeleteSoftware(s)} className="text-red-600 hover:text-red-900">
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {paginatedSoftware.length > 0 ? (
-                                    paginatedSoftware.map((software, index) => (
-                                        <tr key={software.id} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {startIndex + index + 1} {/* Corrected index for pagination */}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center">
-                                                    <Monitor className="h-5 w-5 text-purple-500 mr-2" />
-                                                    <div className="text-sm font-medium text-gray-900">{software.name}</div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {software.version}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center">
-                                                    {getPlatformIcon(software.platform)}
-                                                    <span className="ml-2 text-sm text-gray-900">{software.platform}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                {software.isCurrentVersion ? (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                        <CheckCircle className="w-3 h-3 mr-1" />
-                                                        Yes
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                                        <XCircle className="w-3 h-3 mr-1" />
-                                                        No
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                {getStatusBadge(software.status)}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                <div className="flex items-center">
-                                                    <Calendar className="h-3 w-3 mr-1 text-gray-400" />
-                                                    {formatDateTime(software.lastUpdated)}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <div className="flex items-center space-x-2">
-                                                    <button
-                                                        onClick={() => handleViewSoftware(software)}
-                                                        className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
-                                                        title="View Details"
-                                                    >
-                                                        <Eye className="h-4 w-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleEditSoftware(software)}
-                                                        className="text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-50"
-                                                        title="Edit"
-                                                    >
-                                                        <Edit className="h-4 w-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteSoftware(software)}
-                                                        className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan={8} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                                            No software found.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Pagination */}
+                            ))}
+                        </tbody>
+                    </table>
                     <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                        <div className="flex-1 flex justify-between sm:hidden">
-                            <button
-                                onClick={() => handlePageChange(currentPage - 1)}
-                                disabled={currentPage === 1}
-                                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Previous
-                            </button>
-                            <button
-                                onClick={() => handlePageChange(currentPage + 1)}
-                                disabled={currentPage === totalPages}
-                                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Next
-                            </button>
-                        </div>
-                        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                            <div>
-                                <p className="text-sm text-gray-700">
-                                    Showing <span className="font-semibold">{startIndex + 1}</span> to{" "}
-                                    <span className="font-semibold">{endIndex}</span> of{" "}
-                                    <span className="font-semibold">{totalItems}</span> results
-                                </p>
-                            </div>
-                            <div className="flex items-center space-x-3"> {/* Added space-x-3 for spacing between nav and select */}
-                                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                                    {/* Previous Button with Lucide icon */}
-                                    <button
-                                        onClick={() => handlePageChange(currentPage - 1)}
-                                        disabled={currentPage === 1}
-                                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        aria-label="Previous"
-                                    >
-                                        <span className="sr-only">Previous</span>
-                                        <ChevronLeft className="h-5 w-5" />
-                                    </button>
-
-                                    {/* Page Number Buttons */}
-                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
-                                        <button
-                                            key={pageNumber}
-                                            onClick={() => handlePageChange(pageNumber)}
-                                            aria-current={currentPage === pageNumber ? "page" : undefined}
-                                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium
-                                                ${currentPage === pageNumber
-                                                    ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
-                                                    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
-                                                }`}
-                                        >
-                                            {pageNumber}
-                                        </button>
-                                    ))}
-
-                                    {/* Next Button with Lucide icon */}
-                                    <button
-                                        onClick={() => handlePageChange(currentPage + 1)}
-                                        disabled={currentPage === totalPages}
-                                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        aria-label="Next"
-                                    >
-                                        <span className="sr-only">Next</span>
-                                        <ChevronRight className="h-5 w-5" />
-                                    </button>
-                                </nav>
-
-                                {/* Items per page selector */}
-                                <select
-                                    value={itemsPerPage}
-                                    onChange={handleItemsPerPageChange}
-                                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-md"
-                                >
-                                    <option value={10}>10 per page</option> {/* Added 10 as an option */}
-                                    <option value={20}>20 per page</option>
-                                    <option value={50}>50 per page</option>
-                                    <option value={100}>100 per page</option>
-                                </select>
-                            </div>
+                        <div className="flex-1 flex justify-center ">
+                            {filteredAndPaginatedSoftWare.totalPages > 1 && (
+                                <div className="mt-4 flex justify-center">
+                                    <Pagination
+                                        currentPage={currentPage}
+                                        totalPages={filteredAndPaginatedSoftWare.totalPages}
+                                        onPageChange={setCurrentPage}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

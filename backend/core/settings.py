@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'corsheaders',
     
     # Local apps
-    'authx',
+    'authx.apps.AuthxConfig',
 ]
 
 MIDDLEWARE = [

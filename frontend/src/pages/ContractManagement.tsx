@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import ContentHeader from "@/components/ui/ContentHeader";
 import {
     FileText,
     Plus,
@@ -18,25 +19,24 @@ import {
     CheckCircle,
     XCircle,
     AlertTriangle,
-    ChevronLeft, // Import ChevronLeft
-    ChevronRight, // Import ChevronRight
 } from "lucide-react";
 import { useAuth } from "@contexts/AuthContext";
 import { securityService, ContractDetail } from "@services/securityApi";
 import ContractModal from "@components/models/ContractModal";
 import ConfirmDialog from "@components/models/ConfirmDialog";
-import ContentHeader from "@/components/ui/ContentHeader";
+import { Pagination } from "@/components/ui/Pagination";
 
 const ContractManagement: React.FC = () => {
-    const { user, hasPermission, isLoading: authLoading } = useAuth();
+    const { user,   isLoading: authLoading } = useAuth();
     const [searchTerm, setSearchTerm] = useState("");
     const [contracts, setContracts] = useState<ContractDetail[]>([]);
     const [loadingData, setLoadingData] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Pagination states
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(20); // Default items per page
+    const itemsPerPage = 5;
 
     // Modal states
     const [contractModal, setContractModal] = useState<{
@@ -96,6 +96,31 @@ const ContractManagement: React.FC = () => {
         }
     }, [authLoading, fetchData]);
 
+    
+    // Filter and Panigation
+    const filteredAndPaginatedContracts = useMemo(() => {
+        const filtered = contracts.filter(
+            (contract) =>
+                contract.customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                contract.customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (contract.customer.phone || "").includes(searchTerm) ||
+                (contract.deviceName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (contract.organization || "").toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        const totalItems = filtered.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const data = filtered.slice(startIndex, endIndex);
+
+        return {
+            data,
+            totalItems,
+            totalPages,
+        };
+    }, [contracts, searchTerm, currentPage, itemsPerPage]);
+
     // Contract handlers
     const handleViewContract = (contract: ContractDetail) => {
         setContractModal({
@@ -141,6 +166,12 @@ const ContractManagement: React.FC = () => {
         });
     };
 
+    const handleShareContract = (contract: ContractDetail) => {
+    
+        console.log("Sharing contract:", contract);
+        alert(`share: ${contract.customer.customerName}`);
+    };
+
     const handleSaveContract = async (contractData: any) => {
         try {
             if (contractModal.mode === "create") {
@@ -159,32 +190,6 @@ const ContractManagement: React.FC = () => {
     };
 
     const dismissError = () => setError(null);
-
-    // Filter contracts based on search term
-    const filteredContracts = contracts.filter(
-        (contract) =>
-            contract.customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            contract.customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (contract.customer.phone && contract.customer.phone.includes(searchTerm)) ||
-            contract.deviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (contract.organization && contract.organization.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-    const totalItems = filteredContracts.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-    const paginatedContracts = filteredContracts.slice(startIndex, endIndex);
-
-    const handlePageChange = (page: number) => {
-        if (page >= 1 && page <= totalPages) {
-            setCurrentPage(page);
-        }
-    };
-
-    const handleItemsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setItemsPerPage(Number(e.target.value));
-        setCurrentPage(1); // Reset to first page when items per page changes
-    };
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -251,21 +256,12 @@ const ContractManagement: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            {/* Header
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">Contract Management</h3>
-                <p className="text-gray-700 leading-relaxed">
-                    Manage customer contracts, track their status and expiration dates.
-                </p>
-            </div> */}
-
-
+            {/* Header */}
             <ContentHeader 
                 title="Contract Management"
                 description="Manage customer contracts, track their status and expiration dates."
                 storageKey="contractManagementHeaderClosed"
                 userId={user?.id} // truyền id user
-
             />
 
             {/* Controls */}
@@ -363,10 +359,10 @@ const ContractManagement: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {paginatedContracts.map((contract, index) => (
+                                {filteredAndPaginatedContracts.data.map((contract, index) => (
                                     <tr key={contract.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 text-sm text-gray-900 truncate max-w-xs">
-                                            {startIndex + index + 1}
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {(currentPage - 1) * itemsPerPage + index + 1}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div>
@@ -385,10 +381,10 @@ const ContractManagement: React.FC = () => {
                                                 {contract.customer.phone || "-"}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-900 truncate max-w-xs">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             {contract.customer?.deviceName}
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-900 truncate max-w-xs">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             {contract.customer?.organization || "-"}
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-900 truncate max-w-xs">
@@ -435,6 +431,30 @@ const ContractManagement: React.FC = () => {
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </button>
+                                                <button
+                                                    onClick={() => handleShareContract(contract)}
+                                                    className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50"
+                                                    title="Share"
+                                                >
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    className="lucide lucide-share-2"
+                                                >
+                                                <circle cx="18" cy="5" r="3" />
+                                                <circle cx="6" cy="12" r="3" />
+                                                <circle cx="18" cy="19" r="3" />
+                                                <line x1="8.59" x2="15.42" y1="13.51" y2="17.49" />
+                                                <line x1="15.42" x2="8.59" y1="6.51" y2="10.49" />
+                                                </svg>
+                                                </button>   
                                             </div>
                                         </td>
                                     </tr>
@@ -445,83 +465,16 @@ const ContractManagement: React.FC = () => {
 
                     {/* Pagination */}
                     <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                        <div className="flex-1 flex justify-between sm:hidden">
-                            <button
-                                onClick={() => handlePageChange(currentPage - 1)}
-                                disabled={currentPage === 1}
-                                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Previous
-                            </button>
-                            <button
-                                onClick={() => handlePageChange(currentPage + 1)}
-                                disabled={currentPage === totalPages}
-                                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Next
-                            </button>
-                        </div>
-                        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                            <div>
-                                <p className="text-sm text-gray-700">
-                                    Showing <span className="font-semibold">{startIndex + 1}</span> to{" "}
-                                    <span className="font-semibold">{endIndex}</span> of{" "}
-                                    <span className="font-semibold">{totalItems}</span> results
-                                </p>
-                            </div>
-                            <div className="flex items-center space-x-3"> {/* Added space-x-3 for spacing between nav and select */}
-                                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                                    {/* Previous Button with Lucide icon */}
-                                    <button
-                                        onClick={() => handlePageChange(currentPage - 1)}
-                                        disabled={currentPage === 1}
-                                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        aria-label="Previous"
-                                    >
-                                        <span className="sr-only">Previous</span>
-                                        <ChevronLeft className="h-5 w-5" />
-                                    </button>
-
-                                    {/* Page Number Buttons */}
-                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
-                                        <button
-                                            key={pageNumber}
-                                            onClick={() => handlePageChange(pageNumber)}
-                                            aria-current={currentPage === pageNumber ? "page" : undefined}
-                                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium
-                                                ${currentPage === pageNumber
-                                                    ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
-                                                    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
-                                                }`}
-                                        >
-                                            {pageNumber}
-                                        </button>
-                                    ))}
-
-                                    {/* Next Button with Lucide icon */}
-                                    <button
-                                        onClick={() => handlePageChange(currentPage + 1)}
-                                        disabled={currentPage === totalPages}
-                                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        aria-label="Next"
-                                    >
-                                        <span className="sr-only">Next</span>
-                                        <ChevronRight className="h-5 w-5" />
-                                    </button>
-                                </nav>
-
-                                {/* Items per page selector */}
-                                <select
-                                    value={itemsPerPage}
-                                    onChange={handleItemsPerPageChange}
-                                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-md"
-                                >
-                                    <option value={10}>10 per page</option> {/* Added 10 as an option */}
-                                    <option value={20}>20 per page</option>
-                                    <option value={50}>50 per page</option>
-                                    <option value={100}>100 per page</option>
-                                </select>
-                            </div>
+                        <div className="flex-1 flex justify-center ">
+                            {filteredAndPaginatedContracts.totalPages > 1 && (
+                                <div className="mt-4 flex justify-center">
+                                    <Pagination
+                                        currentPage={currentPage}
+                                        totalPages={filteredAndPaginatedContracts.totalPages}
+                                        onPageChange={setCurrentPage}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

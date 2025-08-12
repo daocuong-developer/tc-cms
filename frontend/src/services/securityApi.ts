@@ -106,7 +106,7 @@ export interface SoftwareDetail {
     created_at: string;
 }
 
-const API_URL = "http://localhost:8000/api";
+const API_URL = import.meta.env.VITE_API_URL;
 
 const securityApi = axios.create({
     baseURL: API_URL,
