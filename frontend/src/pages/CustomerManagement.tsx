@@ -200,31 +200,6 @@ const CustomerManagement: React.FC = () => {
         setSearchTerm("");
     };
 
-    // const filteredCustomers = customers.filter((customer) => {
-    //     const matchesSearch =
-    //         customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    //         customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    //         (customer.phone && customer.phone.includes(searchTerm)) ||
-    //         (customer.organization && customer.organization.toLowerCase().includes(searchTerm.toLowerCase()));
-
-    //     const matchesPhoneFilter =
-    //         filters.hasPhone === "" ||
-    //         (filters.hasPhone === "yes" && customer.phone) ||
-    //         (filters.hasPhone === "no" && !customer.phone);
-
-    //     const matchesDeviceFilter =
-    //         filters.hasDevice === "" ||
-    //         (filters.hasDevice === "yes" && customer.deviceName) ||
-    //         (filters.hasDevice === "no" && !customer.deviceName);
-
-    //     const matchesOrgFilter =
-    //         filters.hasOrganization === "" ||
-    //         (filters.hasOrganization === "yes" && customer.organization) ||
-    //         (filters.hasOrganization === "no" && !customer.organization);
-
-    //     return matchesSearch && matchesPhoneFilter && matchesDeviceFilter && matchesOrgFilter;
-    // });
-
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString("en-US", {
             year: "numeric",

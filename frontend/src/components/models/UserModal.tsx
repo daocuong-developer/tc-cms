@@ -24,13 +24,13 @@ interface UserModalProps {
     user?: UserDetail | null;
     mode: "view" | "edit" | "create";
     roles: RoleDetail[];
-    departments?: DepartmentDetail[];
     onSave: (userData: any) => Promise<void>;
 }
 
-const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, roles, departments, onSave }) => {
+const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, roles, onSave }) => {
     const [organizations, setOrganizations] = useState<OrganizationDetail[]>([]);
     const [filteredDepartments, setFilteredDepartments] = useState<DepartmentDetail[]>([]);
+    const [allDepartments, setAllDepartments] = useState<DepartmentDetail[]>([]);
     const [loadingDepartments, setLoadingDepartments] = useState(false);
     const [loadingOrganizations, setLoadingOrganizations] = useState(false);
     const [formData, setFormData] = useState({
@@ -51,53 +51,54 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
     const [loading, setSaving] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    // Load organizations on component mount
     useEffect(() => {
-        const loadOrganizations = async () => {
+        const loadInitialData = async () => {
+            if (!isOpen) return;
+
             setLoadingOrganizations(true);
+            setLoadingDepartments(true);
+
             try {
-                const orgs = await securityService.getOrganizations();
+                const [orgs, depts] = await Promise.all([
+                    securityService.getOrganizations(),
+                    securityService.getDepartments(true),
+                ]);
+
+                const normalizedDepts = depts.map((d) => ({
+                    ...d,
+                    organization_id: d.organization_id ?? d.organization?.id ?? null,
+                }));
+
                 setOrganizations(orgs);
+                setAllDepartments(normalizedDepts);
             } catch (error) {
-                console.error("Error loading organizations:", error);
+                console.error("❌ Error loading initial data:", error);
             } finally {
                 setLoadingOrganizations(false);
+                setLoadingDepartments(false);
             }
         };
 
-        if (isOpen) {
-            loadOrganizations();
-        }
+        loadInitialData();
     }, [isOpen]);
 
-    // Filter departments based on selected organization
     useEffect(() => {
-        setLoadingDepartments(true);
-        if (formData.organization_id) {
-            const loadDepartmentsForOrg = async () => {
-                try {
-                    // Use the departments prop which should already be loaded
-                    const filtered = departments.filter(
-                        (dept) => dept.organization?.id === Number(formData.organization_id)
-                    );
-                    setFilteredDepartments(filtered);
-                } catch (error) {
-                    console.error("Error loading departments for organization:", error);
-                    setFilteredDepartments([]);
-                }
-                setLoadingDepartments(false);
-            };
-            loadDepartmentsForOrg();
+        if (formData.organization_id && allDepartments.length > 0) {
+            const filtered = allDepartments.filter(
+                (dept) => String(dept.organization_id) === String(formData.organization_id)
+            );
+            setFilteredDepartments(filtered);
         } else {
             setFilteredDepartments([]);
-            setLoadingDepartments(false);
         }
-    }, [formData.organization_id, departments]);
+    }, [formData.organization_id, allDepartments]);
 
-    // Reset department selection if current department doesn't belong to selected organization
     useEffect(() => {
         if (formData.department_id && filteredDepartments.length > 0) {
-            const currentDeptValid = filteredDepartments.find((dept) => dept.id === formData.department_id);
+            const currentDeptValid = filteredDepartments.find(
+                (dept) => String(dept.id) === String(formData.department_id)
+            );
+
             if (!currentDeptValid) {
                 setFormData((prev) => ({ ...prev, department_id: "" }));
             }
@@ -113,10 +114,10 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                 password: "",
                 phone: user.phone || "",
                 position: user.position || "",
-                organization_id: user.organization?.id || "",
+                organization_id: user.organization?.id?.toString() || user.organization_id?.toString() || "",
                 address: user.address || "",
                 role_ids: user.roles?.map((r) => r.id) || [],
-                department_id: user.department?.id || "",
+                department_id: user.department?.id?.toString() || user.department_id?.toString() || "",
                 is_active: user.is_active ?? true,
                 notes: user.notes || "",
             });
@@ -197,13 +198,25 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                 delete dataToSend.password;
             }
 
-            await onSave(formData);
+            await onSave(dataToSend);
             onClose();
         } catch (error) {
             console.error("Error saving user:", error);
         } finally {
             setSaving(false);
         }
+    };
+
+    // ✅ Handle organization change
+    const handleOrganizationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newOrgId = e.target.value;
+        console.log("🏢 Organization changed to:", newOrgId);
+
+        setFormData({
+            ...formData,
+            organization_id: newOrgId,
+            department_id: "", // Reset department khi đổi organization
+        });
     };
 
     const formatDateTime = (dateString: string | null | undefined) => {
@@ -484,10 +497,8 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                                 </label>
                                                 <select
                                                     value={formData.organization_id}
-                                                    onChange={(e) =>
-                                                        setFormData({ ...formData, organization_id: e.target.value })
-                                                    }
-                                                    disabled={isReadOnly}
+                                                    onChange={handleOrganizationChange} // ✅ Use dedicated handler
+                                                    disabled={isReadOnly || loadingOrganizations}
                                                     className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-200 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-600 transition-all duration-200 bg-white shadow-sm ${
                                                         errors.organization_id
                                                             ? "border-red-300 focus:border-red-500 focus:ring-red-200"
@@ -510,6 +521,12 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                                         <XCircle className="h-4 w-4 mr-1" />
                                                         {errors.organization_id}
                                                     </p>
+                                                )}
+                                                {/* ✅ Debug info - remove in production */}
+                                                {process.env.NODE_ENV === "development" && (
+                                                    <div className="mt-2 text-xs text-gray-500">
+                                                        Selected: {formData.organization_id || "none"}
+                                                    </div>
                                                 )}
                                             </div>
 
@@ -539,7 +556,9 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                                         {loadingDepartments
                                                             ? "Loading departments..."
                                                             : formData.organization_id
-                                                            ? "Choose a department..."
+                                                            ? filteredDepartments.length === 0
+                                                                ? "No departments available"
+                                                                : "Choose a department..."
                                                             : "Select organization first"}
                                                     </option>
                                                     {filteredDepartments.map((dept) => (
@@ -553,6 +572,14 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                                         <XCircle className="h-4 w-4 mr-1" />
                                                         {errors.department_id}
                                                     </p>
+                                                )}
+                                                {/* ✅ Debug info - remove in production */}
+                                                {process.env.NODE_ENV === "development" && (
+                                                    <div className="mt-2 text-xs text-gray-500">
+                                                        Available: {filteredDepartments.length} departments
+                                                        <br />
+                                                        Selected: {formData.department_id || "none"}
+                                                    </div>
                                                 )}
                                                 {formData.organization_id &&
                                                     filteredDepartments.length === 0 &&

@@ -12,6 +12,8 @@ export interface UserDetail {
     notes?: string;
     role: string;
     department: string;
+    organization_id?: number | string | null;
+    department_id?: number | string | null;
     is_active: boolean;
     is_online: boolean;
     last_login: string;
@@ -50,6 +52,8 @@ export interface DepartmentDetail {
     description: string;
     members: number;
     roles: { id: string; name: string }[];
+    organization?: OrganizationDetail;
+    organization_id?: string | number | null;
 }
 
 export interface PermissionDetail {
@@ -219,7 +223,6 @@ export const securityService = {
     // Permission Management
     getPermissions: async (): Promise<PermissionDetail[]> => {
         const response = await securityApi.get<PermissionDetail[]>("/auth/permissions/");
-
         return response.data;
     },
     createPermission: async (permissionData: any): Promise<PermissionDetail> => {

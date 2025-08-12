@@ -1,155 +1,81 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import {
-    Users,
-    Shield,
-    UserPlus,
-    Edit,
-    Trash2,
-    Search,
-    Filter,
-    Plus,
-    Eye,
-    Lock,
-    Unlock,
-    MoreVertical,
-    Building,
-    Building2,
-    Crown,
-} from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { Users, Shield, UserPlus, Edit, Trash2, Plus, Eye, Lock, Crown, Building } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { securityService, UserDetail, RoleDetail, GroupDetail, PermissionDetail } from "@services/securityApi";
-import UserModal from "@components/models/UserModal";
-import ConfirmDialog from "@components/models/ConfirmDialog";
-import RoleModal from "@components/models/RoleModal";
-import PermissionModal from "@components/models/PermissionModal";
+import { securityService } from "@/services/securityApi";
+import UserModal from "@/components/models/UserModal";
+import ConfirmDialog from "@/components/models/ConfirmDialog";
+import RoleModal from "@/components/models/RoleModal";
+import PermissionModal from "@/components/models/PermissionModal";
 import GroupModal from "@/components/models/GroupModal";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterDropdown } from "@/components/ui/FilterDropdown";
 
+import { useSecurityActions } from "@/hooks/useSecurityActions";
+import { useSecurityData } from "@/hooks/useSecurityData";
+import {
+    formatDateTime,
+    getUserStatus,
+    getUserStatusBadge,
+    getPermissionTypeBadge,
+    isDefaultDjangoPermission,
+    checkSuperAdmin,
+    createPermission,
+    permissionTypeOptions,
+} from "@/utils/securityHelpers";
+
 const SecurityManagement: React.FC = () => {
     const { user, hasPermission, isLoading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState<"users" | "roles" | "permissions" | "groups">("users");
-    // const [searchTerm, setSearchTerm] = useState("");
-    const [users, setUsers] = useState<UserDetail[]>([]);
-    const [roles, setRoles] = useState<RoleDetail[]>([]);
-    const [groups, setGroups] = useState<GroupDetail[]>([]);
-    const [permissions, setPermissions] = useState<PermissionDetail[]>([]);
-
-    const [loadingData, setLoadingData] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    // Filter and Pagination States for Permissions Tab
-    const [searchTerm, setSearchTerm] = useState("");
-    const [permissionTypeFilter, setPermissionTypeFilter] = useState("all");
-    const [currentPage, setCurrentPage] = useState(1);
-
-    const itemsPerPage = useMemo(
-        () => ({
-            users: 5,
-            roles: 10,
-            groups: 10,
-            permissions: 10,
-        }),
-        []
-    );
 
     // Check if user is Super Admin
-    const isSuperAdmin =
-        user?.is_superuser ||
-        user?.roles?.some(
-            (role) => role.name.toLowerCase().includes("super") || role.name.toLowerCase().includes("admin")
-        );
+    const isSuperAdmin = checkSuperAdmin(user);
+    const checkPerm = useCallback(
+        (permission: string) => createPermission(permission, isSuperAdmin, hasPermission),
+        [isSuperAdmin, hasPermission]
+    );
 
-    const checkPermission = (permission: string) => {
-        return isSuperAdmin || hasPermission(permission);
-    };
+    // Custom hooks
+    const {
+        userModal,
+        roleModal,
+        groupModal,
+        permissionModal,
+        confirmDialog,
+        userActions,
+        roleActions,
+        groupActions,
+        permissionActions,
+        createDeleteHandler,
+        createSaveHandler,
+        setConfirmDialog,
+    } = useSecurityActions();
 
-    const isDefaultDjangoPermission = (codename: string) =>
-        ["add_", "change_", "delete_", "view_"].some((prefix) => codename.startsWith(prefix));
-
-    // Modal states
-    const [userModal, setUserModal] = useState<{
-        isOpen: boolean;
-        mode: "view" | "edit" | "create";
-        user?: UserDetail | null;
-    }>({
-        isOpen: false,
-        mode: "view",
-        user: null,
-    });
-
-    const [confirmDialog, setConfirmDialog] = useState<{
-        isOpen: boolean;
-        title: string;
-        message: string;
-        onConfirm: () => void;
-        loading: boolean;
-    }>({
-        isOpen: false,
-        title: "",
-        message: "",
-        onConfirm: () => {},
-        loading: false,
-    });
-
-    const [roleModal, setRoleModal] = useState<{
-        isOpen: boolean;
-        mode: "view" | "edit" | "create";
-        role?: RoleDetail | null;
-    }>({
-        isOpen: false,
-        mode: "view",
-        role: null,
-    });
-
-    const [groupModal, setGroupModal] = useState<{
-        isOpen: boolean;
-        mode: "view" | "edit" | "create";
-        group?: GroupDetail | null;
-    }>({
-        isOpen: false,
-        mode: "view",
-        group: null,
-    });
-
-    const [permissionModal, setPermissionModal] = useState<{
-        isOpen: boolean;
-        mode: "view" | "edit" | "create";
-        permission?: PermissionDetail | null;
-    }>({
-        isOpen: false,
-        mode: "view",
-        permission: null,
-    });
-
-    const fetchAllData = useCallback(async () => {
-        setLoadingData(true);
-        setError(null);
-        try {
-            const promises = [];
-
-            if (checkPermission("view_user")) {
-                promises.push(securityService.getUsers().then(setUsers));
-            }
-            if (checkPermission("view_role")) {
-                promises.push(securityService.getRoles().then(setRoles));
-            }
-            if (checkPermission("view_group")) {
-                promises.push(securityService.getGroups().then(setGroups));
-            }
-            if (checkPermission("view_permission")) {
-                promises.push(securityService.getPermissions().then(setPermissions));
-            }
-
-            await Promise.all(promises);
-        } catch (err) {
-            console.error("Failed to fetch all data:", err);
-            setError("Failed to load data. Please try again.");
-        } finally {
-            setLoadingData(false);
-        }
-    }, [isSuperAdmin, hasPermission]);
+    const {
+        users,
+        roles,
+        groups,
+        permissions,
+        setUsers,
+        setRoles,
+        setGroups,
+        setPermissions,
+        loadingData,
+        error,
+        searchTerm,
+        setSearchTerm,
+        permissionTypeFilter,
+        setPermissionTypeFilter,
+        currentPage,
+        setCurrentPage,
+        tabCounts,
+        filteredAndPaginatedUsers,
+        filteredAndPaginatedPermissions,
+        filteredRoles,
+        filteredGroups,
+        fetchAllData,
+        resetFilters,
+    } = useSecurityData(checkPerm);
 
     useEffect(() => {
         if (!authLoading) {
@@ -157,13 +83,48 @@ const SecurityManagement: React.FC = () => {
         }
     }, [authLoading, fetchAllData]);
 
-    // Derived counts for tabs
-    const tabCounts = {
-        users: users.length,
-        roles: roles.length,
-        groups: roles.length,
-        permissions: permissions.length,
-    };
+    useEffect(() => {
+        resetFilters();
+    }, [activeTab, resetFilters]);
+
+    // Create specific action handlers using the factory functions
+    const handleDeleteUser = createDeleteHandler("User", securityService.deleteUser, setUsers);
+    const handleDeleteRole = createDeleteHandler("Role", securityService.deleteRole, setRoles);
+    const handleDeleteGroup = createDeleteHandler("Group", securityService.deleteGroup, setGroups);
+    const handleDeletePermission = createDeleteHandler("Permission", securityService.deletePermission, setPermissions);
+
+    // Create save handlers
+    const handleSaveUser = createSaveHandler(
+        userModal,
+        (state) => userActions.close(),
+        securityService.createUser,
+        securityService.updateUser,
+        setUsers
+    );
+
+    const handleSaveRole = createSaveHandler(
+        roleModal,
+        (state) => roleActions.close(),
+        securityService.createRole,
+        securityService.updateRole,
+        setRoles
+    );
+
+    const handleSaveGroup = createSaveHandler(
+        groupModal,
+        (state) => groupActions.close(),
+        securityService.createGroup,
+        securityService.updateGroup,
+        setGroups
+    );
+
+    const handleSavePermission = createSaveHandler(
+        permissionModal,
+        (state) => permissionActions.close(),
+        securityService.createPermission,
+        securityService.updatePermission,
+        setPermissions
+    );
 
     const tabs = [
         { id: "users", label: "Users", icon: Users, count: tabCounts.users, permission: "view_user" },
@@ -178,376 +139,6 @@ const SecurityManagement: React.FC = () => {
         },
     ];
 
-    // User action handlers
-    const handleViewUser = (user: UserDetail) => {
-        setUserModal({
-            isOpen: true,
-            mode: "view",
-            user,
-        });
-    };
-
-    const handleEditUser = (user: UserDetail) => {
-        setUserModal({
-            isOpen: true,
-            mode: "edit",
-            user,
-        });
-    };
-
-    const handleCreateUser = () => {
-        setUserModal({
-            isOpen: true,
-            mode: "create",
-            user: null,
-        });
-    };
-
-    const handleDeleteUser = (user: UserDetail) => {
-        setConfirmDialog({
-            isOpen: true,
-            title: "Delete User",
-            message: `Are you sure you want to delete user "${
-                user.full_name || user.username
-            }"? This action cannot be undone.`,
-            onConfirm: () => confirmDeleteUser(user.id),
-            loading: false,
-        });
-    };
-
-    const confirmDeleteUser = async (userId: string) => {
-        setConfirmDialog((prev) => ({ ...prev, loading: true }));
-        try {
-            await securityService.deleteUser(userId);
-            setUsers(users.filter((u) => u.id !== userId));
-            setConfirmDialog((prev) => ({ ...prev, isOpen: false, loading: false }));
-        } catch (error) {
-            console.error("Error deleting user:", error);
-            setConfirmDialog((prev) => ({ ...prev, loading: false }));
-        }
-    };
-
-    const handleSaveUser = async (userData: any) => {
-        try {
-            if (userModal.mode === "create") {
-                const newUser = await securityService.createUser(userData);
-                setUsers([...users, newUser]);
-            } else if (userModal.mode === "edit" && userModal.user) {
-                const updatedUser = await securityService.updateUser(userModal.user.id, userData);
-                setUsers(users.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
-            }
-            setUserModal({ isOpen: false, mode: "view", user: null });
-        } catch (error) {
-            console.error("Error saving user:", error);
-            throw error;
-        }
-    };
-
-    // Role action handlers
-    const handleViewRole = (role: RoleDetail) => {
-        setRoleModal({
-            isOpen: true,
-            mode: "view",
-            role,
-        });
-    };
-
-    const handleEditRole = (role: RoleDetail) => {
-        setRoleModal({
-            isOpen: true,
-            mode: "edit",
-            role,
-        });
-    };
-
-    const handleCreateRole = () => {
-        setRoleModal({
-            isOpen: true,
-            mode: "create",
-            role: null,
-        });
-    };
-
-    const handleDeleteRole = (role: RoleDetail) => {
-        setConfirmDialog({
-            isOpen: true,
-            title: "Delete Role",
-            message: `Are you sure you want to delete role "${role.name}"? This action cannot be undone and will affect ${role.user_count} users.`,
-            onConfirm: () => confirmDeleteRole(role.id),
-            loading: false,
-        });
-    };
-
-    const confirmDeleteRole = async (roleId: string) => {
-        setConfirmDialog((prev) => ({ ...prev, loading: true }));
-        try {
-            await securityService.deleteRole(roleId);
-            setRoles(roles.filter((r) => r.id !== roleId));
-            setConfirmDialog((prev) => ({ ...prev, isOpen: false, loading: false }));
-        } catch (error) {
-            console.error("Error deleting role:", error);
-            setConfirmDialog((prev) => ({ ...prev, loading: false }));
-        }
-    };
-
-    const handleSaveRole = async (roleData: any) => {
-        try {
-            if (roleModal.mode === "create") {
-                const newRole = await securityService.createRole(roleData);
-                setRoles([...roles, newRole]);
-            } else if (roleModal.mode === "edit" && roleModal.role) {
-                const updatedRole = await securityService.updateRole(roleModal.role.id, roleData);
-                setRoles(roles.map((r) => (r.id === updatedRole.id ? updatedRole : r)));
-            }
-            setRoleModal({ isOpen: false, mode: "view", role: null });
-        } catch (error) {
-            console.error("Error saving role:", error);
-            throw error;
-        }
-    };
-
-    // Group action handlers
-    const handleViewGroup = (group: GroupDetail) => {
-        setGroupModal({
-            isOpen: true,
-            mode: "view",
-            group,
-        });
-    };
-
-    const handleEditGroup = (group: GroupDetail) => {
-        setGroupModal({
-            isOpen: true,
-            mode: "edit",
-            group,
-        });
-    };
-
-    const handleCreateGroup = () => {
-        setGroupModal({
-            isOpen: true,
-            mode: "create",
-            group: null,
-        });
-    };
-
-    const handleDeleteGroup = (group: GroupDetail) => {
-        setConfirmDialog({
-            isOpen: true,
-            title: "Delete Group",
-            message: `Are you sure you want to delete group "${group.name}"? This action cannot be undone.`,
-            onConfirm: () => confirmDeleteGroup(group.id),
-            loading: false,
-        });
-    };
-
-    const confirmDeleteGroup = async (groupId: string) => {
-        setConfirmDialog((prev) => ({ ...prev, loading: true }));
-        try {
-            await securityService.deleteGroup(groupId);
-            setGroups(groups.filter((g) => g.id !== groupId));
-            setConfirmDialog((prev) => ({ ...prev, isOpen: false, loading: false }));
-        } catch (error) {
-            console.error("Error deleting group:", error);
-            setConfirmDialog((prev) => ({ ...prev, loading: false }));
-        }
-    };
-
-    const handleSaveGroup = async (groupData: Partial<GroupDetail>) => {
-        try {
-            if (groupModal.mode === "create") {
-                const newGroup = await securityService.createGroup(groupData);
-                setGroups((prev) => [...prev, newGroup]);
-            } else if (groupModal.mode === "edit" && groupModal.group) {
-                const updatedGroup = await securityService.updateGroup(groupModal.group.id, groupData);
-                setGroups((prev) => prev.map((g) => (g.id === updatedGroup.id ? updatedGroup : g)));
-            }
-            setGroupModal({ isOpen: false, mode: "view", group: null });
-        } catch (error) {
-            console.error("Error saving group:", error);
-            throw error;
-        }
-    };
-
-    // Permission action handlers
-    const handleViewPermission = (permission: PermissionDetail) => {
-        setPermissionModal({
-            isOpen: true,
-            mode: "view",
-            permission,
-        });
-    };
-
-    const handleEditPermission = (permission: PermissionDetail) => {
-        setPermissionModal({
-            isOpen: true,
-            mode: "edit",
-            permission,
-        });
-    };
-
-    const handleDeletePermission = (permission: PermissionDetail) => {
-        setConfirmDialog({
-            isOpen: true,
-            title: "Delete Permission",
-            message: `Are you sure you want to delete permission "${permission.name}"? This action cannot be undone and may affect user access.`,
-            onConfirm: () => confirmDeletePermission(permission.id),
-            loading: false,
-        });
-    };
-
-    const confirmDeletePermission = async (permissionId: string) => {
-        setConfirmDialog((prev) => ({ ...prev, loading: true }));
-        try {
-            await securityService.deletePermission(permissionId);
-            setPermissions(permissions.filter((p) => p.id !== permissionId));
-            setConfirmDialog((prev) => ({ ...prev, isOpen: false, loading: false }));
-        } catch (error) {
-            console.error("Error deleting permission:", error);
-            setConfirmDialog((prev) => ({ ...prev, loading: false }));
-        }
-    };
-
-    const handleSavePermission = async (permissionData: any) => {
-        try {
-            if (permissionModal.mode === "create") {
-                const newPermission = await securityService.createPermission(permissionData);
-                setPermissions([...permissions, newPermission]);
-            } else if (permissionModal.mode === "edit" && permissionModal.permission) {
-                const updatedPermission = await securityService.updatePermission(
-                    permissionModal.permission.id,
-                    permissionData
-                );
-                setPermissions(permissions.map((p) => (p.id === updatedPermission.id ? updatedPermission : p)));
-            }
-            setPermissionModal({ isOpen: false, mode: "view", permission: null });
-        } catch (error) {
-            console.error("Error saving permission:", error);
-            throw error;
-        }
-    };
-
-    const formatDateTime = (dateString: string | null | undefined) => {
-        if (!dateString) return "Never";
-        const date = new Date(dateString);
-        return date.toLocaleString("en-US", {
-            timeZone: "Asia/Ho_Chi_Minh",
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
-    };
-
-    const getUserStatus = (user: UserDetail) => {
-        if (user.is_online) {
-            return "Online";
-        }
-        if (user.is_active) {
-            return "Active";
-        }
-        return "Inactive";
-    };
-
-    const getUserStatusBadge = (status: string) => {
-        const baseClasses = "px-2 py-1 text-xs font-medium rounded-full";
-        switch (status) {
-            case "Online":
-                return `${baseClasses} bg-green-100 text-green-800`;
-            case "Active":
-                return `${baseClasses} bg-blue-100 text-blue-800`;
-            case "Inactive":
-                return `${baseClasses} bg-red-100 text-red-800`;
-            default:
-                return `${baseClasses} bg-gray-100 text-gray-800`;
-        }
-    };
-
-    const getPermissionTypeBadge = (type: string) => {
-        const baseClasses = "px-2 py-1 text-xs font-medium rounded-full";
-        switch (type) {
-            case "create":
-                return `${baseClasses} bg-purple-100 text-purple-800`;
-            case "view":
-                return `${baseClasses} bg-green-100 text-green-800`;
-            case "update":
-                return `${baseClasses} bg-indigo-100 text-indigo-800`;
-            case "delete":
-                return `${baseClasses} bg-orange-100 text-orange-800`;
-            case "admin":
-                return `${baseClasses} bg-red-100 text-red-800`;
-            case "write":
-                return `${baseClasses} bg-blue-100 text-blue-800`;
-            case "read":
-                return `${baseClasses} bg-teal-100 text-teal-800`;
-            default:
-                return `${baseClasses} bg-gray-100 text-gray-800`;
-        }
-    };
-
-    const filteredAndPaginatedUsers = useMemo(() => {
-        let filtered = users.filter(
-            (user) =>
-                user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                user.email.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-
-        const totalItems = filtered.length;
-        const totalPages = Math.ceil(totalItems / itemsPerPage.users);
-        const startIndex = (currentPage - 1) * itemsPerPage.users;
-        const endIndex = startIndex + itemsPerPage.users;
-        const data = filtered.slice(startIndex, endIndex);
-
-        return {
-            data,
-            totalItems,
-            totalPages,
-        };
-    }, [users, searchTerm, currentPage, itemsPerPage]);
-
-    const filteredAndPaginatedPermissions = useMemo(() => {
-        let filtered = permissions.filter((p) => {
-            const matchesSearch =
-                p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                p.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                p.module.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesType =
-                permissionTypeFilter === "all" ||
-                (permissionTypeFilter === "default-django" && isDefaultDjangoPermission(p.codename)) ||
-                (permissionTypeFilter === "no-default-django" && !isDefaultDjangoPermission(p.codename)) ||
-                (permissionTypeFilter !== "default-django" && p.type.toLowerCase() === permissionTypeFilter);
-            return matchesSearch && matchesType;
-        });
-
-        const totalItems = filtered.length;
-        const totalPages = Math.ceil(totalItems / itemsPerPage.permissions);
-        const startIndex = (currentPage - 1) * itemsPerPage.permissions;
-        const endIndex = startIndex + itemsPerPage.permissions;
-        const data = filtered.slice(startIndex, endIndex);
-
-        return {
-            data,
-            totalItems,
-            totalPages,
-        };
-    }, [permissions, searchTerm, permissionTypeFilter, currentPage, itemsPerPage]);
-
-    // Define options for FilterDropdown components
-    const permissionTypeOptions = [
-        { value: "all", label: "All Types" },
-        { value: "default-django", label: "Default Django Permission" },
-        { value: "no-default-django", label: "No Default Django Permission" },
-        { value: "module", label: "Module" },
-        { value: "system", label: "System" },
-    ];
-
-    useEffect(() => {
-        setCurrentPage(1);
-        setSearchTerm("");
-    }, [activeTab]);
-
     const renderUsers = () => (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
@@ -561,9 +152,9 @@ const SecurityManagement: React.FC = () => {
                         placeholder="Search users..."
                     />
                 </div>
-                {checkPermission("add_user") && (
+                {checkPerm("add_user") && (
                     <button
-                        onClick={handleCreateUser}
+                        onClick={userActions.create}
                         className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
                         <UserPlus className="h-4 w-4 mr-2" />
@@ -667,7 +258,7 @@ const SecurityManagement: React.FC = () => {
                                             )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {user.department?.codename || "N/A"}
+                                            {user.department?.name || "N/A"}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={getUserStatusBadge(getUserStatus(user))}>
@@ -679,25 +270,25 @@ const SecurityManagement: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end space-x-2">
-                                                {checkPermission("view_user") && (
+                                                {checkPerm("view_user") && (
                                                     <button
-                                                        onClick={() => handleViewUser(user)}
+                                                        onClick={() => userActions.view(user)}
                                                         className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
                                                         title="View user"
                                                     >
                                                         <Eye className="h-4 w-4" />
                                                     </button>
                                                 )}
-                                                {checkPermission("change_user") && (
+                                                {checkPerm("change_user") && (
                                                     <button
-                                                        onClick={() => handleEditUser(user)}
+                                                        onClick={() => userActions.edit(user)}
                                                         className="text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-50"
                                                         title="Edit user"
                                                     >
                                                         <Edit className="h-4 w-4" />
                                                     </button>
                                                 )}
-                                                {checkPermission("delete_user") && !user.is_superuser && (
+                                                {checkPerm("delete_user") && !user.is_superuser && (
                                                     <button
                                                         onClick={() => handleDeleteUser(user)}
                                                         className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
@@ -742,9 +333,9 @@ const SecurityManagement: React.FC = () => {
                         />
                     </div>
                 </div>
-                {checkPermission("add_role") && (
+                {checkPerm("add_role") && (
                     <button
-                        onClick={handleCreateRole}
+                        onClick={roleActions.create}
                         className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                     >
                         <Plus className="h-4 w-4 mr-2" />
@@ -760,84 +351,76 @@ const SecurityManagement: React.FC = () => {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {roles
-                        .filter(
-                            (role) =>
-                                role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                role.description?.toLowerCase().includes(searchTerm.toLowerCase())
-                        )
-                        .map((role) => (
-                            <div
-                                key={role.id}
-                                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-all duration-200 hover:border-green-300"
-                            >
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-green-100 rounded-lg mr-3">
-                                            <Shield className="h-6 w-6 text-green-600" />
-                                        </div>
-                                        <div>
-                                            <h4 className="text-lg font-medium text-gray-900">{role.name}</h4>
-                                            <p className="text-sm text-gray-500 flex items-center">
-                                                <Users className="h-4 w-4 mr-1" />
-                                                {role.user_count} users
-                                            </p>
-                                        </div>
+                    {filteredRoles.map((role) => (
+                        <div
+                            key={role.id}
+                            className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-all duration-200 hover:border-green-300"
+                        >
+                            <div className="flex items-start justify-between mb-4">
+                                <div className="flex items-center">
+                                    <div className="p-2 bg-green-100 rounded-lg mr-3">
+                                        <Shield className="h-6 w-6 text-green-600" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-lg font-medium text-gray-900">{role.name}</h4>
+                                        <p className="text-sm text-gray-500 flex items-center">
+                                            <Users className="h-4 w-4 mr-1" />
+                                            {role.user_count} users
+                                        </p>
                                     </div>
                                 </div>
-                                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{role.description}</p>
-                                <div className="space-y-2">
-                                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                                        Permissions
-                                    </p>
-                                    <div className="flex flex-wrap gap-1">
-                                        {role.permissions?.slice(0, 3).map((permission, index) => (
-                                            <span
-                                                key={index}
-                                                className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                                            >
-                                                {permission.name?.replace("_", " ")}
-                                            </span>
-                                        ))}
-                                        {role.permissions && role.permissions.length > 3 && (
-                                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                                                +{role.permissions.length - 3} more
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end space-x-2">
-                                    {checkPermission("view_role") && (
-                                        <button
-                                            onClick={() => handleViewRole(role)}
-                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                            title="View role"
+                            </div>
+                            <p className="text-sm text-gray-600 mb-4 line-clamp-2">{role.description}</p>
+                            <div className="space-y-2">
+                                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Permissions</p>
+                                <div className="flex flex-wrap gap-1">
+                                    {role.permissions?.slice(0, 3).map((permission, index) => (
+                                        <span
+                                            key={index}
+                                            className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
                                         >
-                                            <Eye className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                    {checkPermission("change_role") && (
-                                        <button
-                                            onClick={() => handleEditRole(role)}
-                                            className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                            title="Edit role"
-                                        >
-                                            <Edit className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                    {checkPermission("delete_role") && (
-                                        <button
-                                            onClick={() => handleDeleteRole(role)}
-                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                            title="Delete role"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
+                                            {permission.name?.replace("_", " ")}
+                                        </span>
+                                    ))}
+                                    {role.permissions && role.permissions.length > 3 && (
+                                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                            +{role.permissions.length - 3} more
+                                        </span>
                                     )}
                                 </div>
                             </div>
-                        ))}
+
+                            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end space-x-2">
+                                {checkPerm("view_role") && (
+                                    <button
+                                        onClick={() => roleActions.view(role)}
+                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        title="View role"
+                                    >
+                                        <Eye className="h-4 w-4" />
+                                    </button>
+                                )}
+                                {checkPerm("change_role") && (
+                                    <button
+                                        onClick={() => roleActions.edit(role)}
+                                        className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                        title="Edit role"
+                                    >
+                                        <Edit className="h-4 w-4" />
+                                    </button>
+                                )}
+                                {checkPerm("delete_role") && (
+                                    <button
+                                        onClick={() => handleDeleteRole(role)}
+                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Delete role"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    ))}
                 </div>
             )}
         </div>
@@ -858,9 +441,9 @@ const SecurityManagement: React.FC = () => {
                         />
                     </div>
                 </div>
-                {checkPermission("add_group") && (
+                {checkPerm("add_group") && (
                     <button
-                        onClick={handleCreateGroup}
+                        onClick={groupActions.create}
                         className="flex items-center px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
                     >
                         <Plus className="h-4 w-4 mr-2" />
@@ -876,93 +459,87 @@ const SecurityManagement: React.FC = () => {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {groups
-                        .filter(
-                            (group) =>
-                                group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                group.description?.toLowerCase().includes(searchTerm.toLowerCase())
-                        )
-                        .map((group) => (
-                            <div
-                                key={group.id}
-                                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-all duration-200 hover:border-cyan-300"
-                            >
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-cyan-100 rounded-lg mr-3">
-                                            <Building className="h-6 w-6 text-cyan-600" />
-                                        </div>
-                                        <div>
-                                            <h4 className="text-lg font-medium text-gray-900">{group.name}</h4>
-                                            <p className="text-sm text-gray-500 flex items-center">
-                                                <Users className="h-4 w-4 mr-1" />
-                                                {group.members || 0} members
-                                            </p>
-                                        </div>
+                    {filteredGroups.map((group) => (
+                        <div
+                            key={group.id}
+                            className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-all duration-200 hover:border-cyan-300"
+                        >
+                            <div className="flex items-start justify-between mb-4">
+                                <div className="flex items-center">
+                                    <div className="p-2 bg-cyan-100 rounded-lg mr-3">
+                                        <Building className="h-6 w-6 text-cyan-600" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-lg font-medium text-gray-900">{group.name}</h4>
+                                        <p className="text-sm text-gray-500 flex items-center">
+                                            <Users className="h-4 w-4 mr-1" />
+                                            {group.members + 1 || 0} members
+                                        </p>
                                     </div>
                                 </div>
-                                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{group.description}</p>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-4 line-clamp-2">{group.description}</p>
 
-                                <div className="space-y-2">
-                                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                                        Assigned Roles
-                                    </p>
-                                    <div className="flex flex-wrap gap-1">
-                                        {group.roles && group.roles.length > 0 ? (
-                                            <>
-                                                {group.roles.slice(0, 2).map((role, index) => (
-                                                    <span
-                                                        key={index}
-                                                        className="px-2 py-1 bg-cyan-100 text-cyan-800 text-xs rounded-full"
-                                                    >
-                                                        {role.name}
-                                                    </span>
-                                                ))}
-                                                {group.roles.length > 2 && (
-                                                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                                                        +{group.roles.length - 2} more
-                                                    </span>
-                                                )}
-                                            </>
-                                        ) : (
-                                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                                                No roles assigned
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end space-x-2">
-                                    {checkPermission("view_department") && (
-                                        <button
-                                            onClick={() => handleViewGroup(group)}
-                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                            title="View department"
-                                        >
-                                            <Eye className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                    {checkPermission("change_department") && (
-                                        <button
-                                            onClick={() => handleEditGroup(group)}
-                                            className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                            title="Edit department"
-                                        >
-                                            <Edit className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                    {checkPermission("delete_department") && (
-                                        <button
-                                            onClick={() => handleDeleteGroup(group)}
-                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                            title="Delete department"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
+                            <div className="space-y-2">
+                                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                    Assigned Roles
+                                </p>
+                                <div className="flex flex-wrap gap-1">
+                                    {group.roles && group.roles.length > 0 ? (
+                                        <>
+                                            {group.roles.slice(0, 2).map((role, index) => (
+                                                <span
+                                                    key={index}
+                                                    className="px-2 py-1 bg-cyan-100 text-cyan-800 text-xs rounded-full"
+                                                >
+                                                    {role.name}
+                                                </span>
+                                            ))}
+                                            {group.roles.length > 2 && (
+                                                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                                    +{group.roles.length - 2} more
+                                                </span>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                            No roles assigned
+                                        </span>
                                     )}
                                 </div>
                             </div>
-                        ))}
+
+                            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end space-x-2">
+                                {checkPerm("view_group") && (
+                                    <button
+                                        onClick={() => groupActions.view(group)}
+                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        title="View group"
+                                    >
+                                        <Eye className="h-4 w-4" />
+                                    </button>
+                                )}
+                                {checkPerm("change_group") && (
+                                    <button
+                                        onClick={() => groupActions.edit(group)}
+                                        className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                        title="Edit group"
+                                    >
+                                        <Edit className="h-4 w-4" />
+                                    </button>
+                                )}
+                                {checkPerm("delete_group") && (
+                                    <button
+                                        onClick={() => handleDeleteGroup(group)}
+                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Delete group"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    ))}
                 </div>
             )}
         </div>
@@ -1009,7 +586,10 @@ const SecurityManagement: React.FC = () => {
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Permission
+                                        CodeName
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Permission Name
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Module
@@ -1020,6 +600,7 @@ const SecurityManagement: React.FC = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Description
                                     </th>
+
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Actions
                                     </th>
@@ -1033,6 +614,7 @@ const SecurityManagement: React.FC = () => {
                                             isDefaultDjangoPermission(permission.codename) ? "bg-blue-50" : ""
                                         }`}
                                     >
+                                        <td className="px-6 py-4 text-sm text-gray-500">{permission.codename}</td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
                                                 <Lock className="h-4 w-4 text-gray-400 mr-2" />
@@ -1057,25 +639,25 @@ const SecurityManagement: React.FC = () => {
                                         <td className="px-6 py-4 text-sm text-gray-500">{permission.description}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end space-x-2">
-                                                {checkPermission("view_permission") && (
+                                                {checkPerm("view_permission") && (
                                                     <button
-                                                        onClick={() => handleViewPermission(permission)}
+                                                        onClick={() => permissionActions.view(permission)}
                                                         className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
                                                         title="View permission"
                                                     >
                                                         <Eye className="h-4 w-4" />
                                                     </button>
                                                 )}
-                                                {checkPermission("change_permission") && (
+                                                {checkPerm("change_permission") && (
                                                     <button
-                                                        onClick={() => handleEditPermission(permission)}
+                                                        onClick={() => permissionActions.edit(permission)}
                                                         className="text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-50"
                                                         title="Edit permission"
                                                     >
                                                         <Edit className="h-4 w-4" />
                                                     </button>
                                                 )}
-                                                {checkPermission("delete_permission") &&
+                                                {checkPerm("delete_permission") &&
                                                     !["add_", "change_", "delete_", "view_"].some((prefix) =>
                                                         permission.codename.startsWith(prefix)
                                                     ) && (
@@ -1156,8 +738,7 @@ const SecurityManagement: React.FC = () => {
                 <nav className="-mb-px flex space-x-8">
                     {tabs.map((tab) => {
                         const Icon = tab.icon;
-                        // Show tab if user has permission OR is Super Admin
-                        if (checkPermission(tab.permission)) {
+                        if (checkPerm(tab.permission)) {
                             return (
                                 <button
                                     key={tab.id}
@@ -1183,15 +764,15 @@ const SecurityManagement: React.FC = () => {
 
             {/* Tab Content */}
             <div className="mt-6">
-                {activeTab === "users" && checkPermission("view_user") && renderUsers()}
-                {activeTab === "roles" && checkPermission("view_role") && renderRoles()}
-                {activeTab === "permissions" && checkPermission("view_permission") && renderPermissions()}
-                {activeTab === "groups" && checkPermission("view_group") && renderGroups()}
+                {activeTab === "users" && checkPerm("view_user") && renderUsers()}
+                {activeTab === "roles" && checkPerm("view_role") && renderRoles()}
+                {activeTab === "permissions" && checkPerm("view_permission") && renderPermissions()}
+                {activeTab === "groups" && checkPerm("view_group") && renderGroups()}
 
-                {!checkPermission("view_user") &&
-                    !checkPermission("view_role") &&
-                    !checkPermission("view_group") &&
-                    !checkPermission("view_permission") && (
+                {!checkPerm("view_user") &&
+                    !checkPerm("view_role") &&
+                    !checkPerm("view_group") &&
+                    !checkPerm("view_permission") && (
                         <div className="text-center py-12">
                             <Lock className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                             <h3 className="text-lg font-medium text-gray-900 mb-2">Access Restricted</h3>
@@ -1205,18 +786,17 @@ const SecurityManagement: React.FC = () => {
             {/* Modals */}
             <UserModal
                 isOpen={userModal.isOpen}
-                onClose={() => setUserModal({ isOpen: false, mode: "view", user: null })}
-                user={userModal.user}
+                onClose={userActions.close}
+                user={userModal.item}
                 mode={userModal.mode}
                 roles={roles}
-                // departments={department}
                 onSave={handleSaveUser}
             />
 
             <RoleModal
                 isOpen={roleModal.isOpen}
-                onClose={() => setRoleModal({ isOpen: false, mode: "view", role: null })}
-                role={roleModal.role}
+                onClose={roleActions.close}
+                role={roleModal.item}
                 mode={roleModal.mode}
                 permissions={permissions}
                 onSave={handleSaveRole}
@@ -1224,8 +804,8 @@ const SecurityManagement: React.FC = () => {
 
             <GroupModal
                 isOpen={groupModal.isOpen}
-                onClose={() => setGroupModal({ isOpen: false, mode: "view", group: null })}
-                group={groupModal.group}
+                onClose={groupActions.close}
+                group={groupModal.item}
                 mode={groupModal.mode}
                 roles={roles}
                 onSave={handleSaveGroup}
@@ -1233,8 +813,8 @@ const SecurityManagement: React.FC = () => {
 
             <PermissionModal
                 isOpen={permissionModal.isOpen}
-                onClose={() => setPermissionModal({ isOpen: false, mode: "view", permission: null })}
-                permission={permissionModal.permission}
+                onClose={permissionActions.close}
+                permission={permissionModal.item}
                 mode={permissionModal.mode}
                 onSave={handleSavePermission}
             />
