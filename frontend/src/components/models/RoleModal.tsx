@@ -85,7 +85,6 @@ const RoleModal: React.FC<RoleModalProps> = ({ isOpen, onClose, role, mode, perm
         acc[module].push(permission);
         return acc;
     }, {} as Record<string, PermissionDetail[]>);
-
     const getPermissionTypeBadge = (type: string) => {
         const baseClasses = "px-2 py-1 text-xs font-medium rounded-full";
         switch (type) {
@@ -243,7 +242,7 @@ const RoleModal: React.FC<RoleModalProps> = ({ isOpen, onClose, role, mode, perm
                                                         <div className="flex items-center justify-between">
                                                             <div className="flex items-center space-x-2">
                                                                 <span className="text-sm font-medium text-gray-900">
-                                                                    {permission.name}
+                                                                    {permission.codename}
                                                                 </span>
                                                                 <span
                                                                     className={getPermissionTypeBadge(permission.type)}
