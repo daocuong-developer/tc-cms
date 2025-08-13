@@ -11,9 +11,27 @@ export interface UserDetail {
     address?: string;
     notes?: string;
     role: string;
-    department: string;
-    organization_id?: number | string | null;
-    department_id?: number | string | null;
+    department?: {
+        id: number;
+        name: string;
+        description: string;
+        organization: {
+            id: number;
+            name: string;
+            description: string;
+            created_at: string;
+            updated_at: string;
+        };
+        created_at: string;
+        updated_at: string;
+    };
+    organization?: {
+        id: number;
+        name: string;
+        description: string;
+        created_at: string;
+        updated_at: string;
+    };
     is_active: boolean;
     is_online: boolean;
     last_login: string;
@@ -53,7 +71,6 @@ export interface DepartmentDetail {
     members: number;
     roles: { id: string; name: string }[];
     organization?: OrganizationDetail;
-    organization_id?: string | number | null;
 }
 
 export interface PermissionDetail {

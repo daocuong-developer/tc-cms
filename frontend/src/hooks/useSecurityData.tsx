@@ -1,8 +1,12 @@
 import { useState, useCallback, useMemo } from "react";
 import { securityService, UserDetail, RoleDetail, GroupDetail, PermissionDetail } from "@/services/securityApi";
-import { isDefaultDjangoPermission, itemsPerPageConfig } from "@/utils/securityHelpers";
+import { isDefaultDjangoPermission, itemsPerPageConfig, filterByOrganization } from "@/utils/securityHelpers";
 
-export const useSecurityData = (checkPermission: (permission: string) => boolean) => {
+export const useSecurityData = (
+    checkPermission: (permission: string) => boolean,
+    currentOrganizationId?: string | null,
+    isSuperAdmin: boolean = false
+) => {
     const [users, setUsers] = useState<UserDetail[]>([]);
     const [roles, setRoles] = useState<RoleDetail[]>([]);
     const [groups, setGroups] = useState<GroupDetail[]>([]);
@@ -23,13 +27,40 @@ export const useSecurityData = (checkPermission: (permission: string) => boolean
             const promises = [];
 
             if (checkPermission("view_user")) {
-                promises.push(securityService.getUsers().then(setUsers));
+                promises.push(
+                    securityService.getUsers().then((data) => {
+                        const filteredUsers = filterByOrganization.users(
+                            data,
+                            currentOrganizationId ?? null,
+                            isSuperAdmin
+                        );
+                        setUsers(filteredUsers);
+                    })
+                );
             }
             if (checkPermission("view_role")) {
-                promises.push(securityService.getRoles().then(setRoles));
+                promises.push(
+                    securityService.getRoles().then((data) => {
+                        const filteredRoles = filterByOrganization.roles(
+                            data,
+                            currentOrganizationId ?? null,
+                            isSuperAdmin
+                        );
+                        setRoles(filteredRoles);
+                    })
+                );
             }
             if (checkPermission("view_group")) {
-                promises.push(securityService.getGroups().then(setGroups));
+                promises.push(
+                    securityService.getGroups().then((data) => {
+                        const filteredGroups = filterByOrganization.groups(
+                            data,
+                            currentOrganizationId ?? null,
+                            isSuperAdmin
+                        );
+                        setGroups(filteredGroups);
+                    })
+                );
             }
             if (checkPermission("view_permission")) {
                 promises.push(securityService.getPermissions().then(setPermissions));
@@ -42,7 +73,7 @@ export const useSecurityData = (checkPermission: (permission: string) => boolean
         } finally {
             setLoadingData(false);
         }
-    }, [checkPermission]);
+    }, [checkPermission, currentOrganizationId, isSuperAdmin]);
 
     // Derived counts for tabs
     const tabCounts = useMemo(

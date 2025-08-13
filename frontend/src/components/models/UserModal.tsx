@@ -169,13 +169,13 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
             newErrors.phone = "Please enter a valid phone number";
         }
 
-        if (!formData.organization_id) {
-            newErrors.organization_id = "Please select an organization";
-        }
+        // if (!formData.organization_id) {
+        //     newErrors.organization_id = "Please select an organization";
+        // }
 
-        if (!formData.department_id) {
-            newErrors.department_id = "Please select a department";
-        }
+        // if (!formData.department_id) {
+        //     newErrors.department_id = "Please select a department";
+        // }
 
         if (formData.role_ids.length === 0) {
             newErrors.role_ids = "Please select at least one role";

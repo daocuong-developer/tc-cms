@@ -1,4 +1,4 @@
-import { UserDetail, PermissionDetail } from "@/services/securityApi";
+import { UserDetail, PermissionDetail, RoleDetail, GroupDetail } from "@/services/securityApi";
 
 export const formatDateTime = (dateString: string | null | undefined): string => {
     if (!dateString) return "Never";
@@ -89,4 +89,122 @@ export const itemsPerPageConfig = {
     roles: 10,
     groups: 10,
     permissions: 10,
+};
+
+// Organization filtering functions
+export const filterByOrganization = {
+    users: (users: UserDetail[], organizationId: string | number | null, isSuperAdmin: boolean): UserDetail[] => {
+        // Super Admin thấy tất cả users
+        if (isSuperAdmin) return users;
+
+        // User chưa thuộc tổ chức nào - chỉ thấy users không thuộc tổ chức nào VÀ không phải super admin
+        if (!organizationId) {
+            return users.filter((user) => !user.organization && !user.is_superuser && !checkSuperAdmin(user));
+        }
+
+        // User thuộc tổ chức - chỉ thấy users cùng tổ chức VÀ không phải super admin
+        return users.filter(
+            (user) => user.organization?.id === organizationId && !user.is_superuser && !checkSuperAdmin(user)
+        );
+    },
+
+    roles: (roles: RoleDetail[], organizationId: string | number | null, isSuperAdmin: boolean): RoleDetail[] => {
+        // Super Admin thấy tất cả roles
+        if (isSuperAdmin) return roles;
+
+        // User chưa thuộc tổ chức nào - chỉ thấy system roles cơ bản (không bao gồm admin roles)
+        if (!organizationId) {
+            return roles.filter((role) => {
+                const roleName = role.name.toLowerCase();
+                // Loại trừ các role admin/super admin
+                const isAdminRole =
+                    roleName.includes("admin") || roleName.includes("super") || roleName.includes("manager");
+
+                return (
+                    !isAdminRole &&
+                    (roleName.includes("guest") ||
+                        roleName.includes("basic") ||
+                        roleName.includes("viewer") ||
+                        roleName.includes("user"))
+                );
+            });
+        }
+
+        // User thuộc tổ chức - loại trừ super admin roles
+        return roles.filter((role) => {
+            const roleName = role.name.toLowerCase();
+            const roleDesc = role.description?.toLowerCase() || "";
+
+            // Loại trừ super admin roles
+            const isSuperAdminRole =
+                roleName.includes("super") || (roleName.includes("admin") && roleName.includes("system"));
+
+            if (isSuperAdminRole) return false;
+
+            return (
+                roleName.includes("admin") ||
+                roleName.includes("user") ||
+                roleName.includes("org") ||
+                roleName.includes("manager") ||
+                roleDesc.includes("organization") ||
+                roleDesc.includes("document")
+            );
+        });
+    },
+
+    groups: (groups: GroupDetail[], organizationId: string | number | null, isSuperAdmin: boolean): GroupDetail[] => {
+        // Super Admin thấy tất cả groups
+        if (isSuperAdmin) return groups;
+
+        // User chưa thuộc tổ chức nào - chỉ thấy public groups
+        if (!organizationId) {
+            return groups.filter((group) => {
+                const groupName = group.name.toLowerCase();
+                const groupDesc = group.description?.toLowerCase() || "";
+
+                // Loại trừ admin groups
+                const isAdminGroup =
+                    groupName.includes("admin") || groupName.includes("super") || groupDesc.includes("admin");
+
+                return (
+                    !isAdminGroup &&
+                    (groupName.includes("public") ||
+                        groupName.includes("general") ||
+                        groupName.includes("basic") ||
+                        groupName.includes("user") ||
+                        groupDesc.includes("public"))
+                );
+            });
+        }
+
+        // User thuộc tổ chức - logic như cũ nhưng loại trừ super admin groups
+        return groups.filter((group) => {
+            const groupName = group.name.toLowerCase();
+            const groupDesc = group.description?.toLowerCase() || "";
+
+            // Loại trừ super admin groups
+            const isSuperAdminGroup =
+                groupName.includes("super") || (groupName.includes("admin") && groupName.includes("system"));
+
+            if (isSuperAdminGroup) return false;
+
+            const hasOrganizationRoles = group.roles?.some((role) => {
+                const roleName = role.name.toLowerCase();
+                return (
+                    roleName.includes("org") ||
+                    roleName.includes("document") ||
+                    roleName.includes("user") ||
+                    roleName.includes("admin")
+                );
+            });
+
+            return (
+                groupName.includes("org") ||
+                groupName.includes("department") ||
+                groupDesc.includes("organization") ||
+                groupDesc.includes("document") ||
+                hasOrganizationRoles
+            );
+        });
+    },
 };

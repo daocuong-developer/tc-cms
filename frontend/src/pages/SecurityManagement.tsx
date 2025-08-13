@@ -10,7 +10,6 @@ import GroupModal from "@/components/models/GroupModal";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterDropdown } from "@/components/ui/FilterDropdown";
-
 import { useSecurityActions } from "@/hooks/useSecurityActions";
 import { useSecurityData } from "@/hooks/useSecurityData";
 import {
@@ -34,6 +33,9 @@ const SecurityManagement: React.FC = () => {
         (permission: string) => createPermission(permission, isSuperAdmin, hasPermission),
         [isSuperAdmin, hasPermission]
     );
+
+    const currentOrganizationId = user?.organization?.id;
+    const isOrganizationUser = !isSuperAdmin && currentOrganizationId;
 
     // Custom hooks
     const {
@@ -75,7 +77,7 @@ const SecurityManagement: React.FC = () => {
         filteredGroups,
         fetchAllData,
         resetFilters,
-    } = useSecurityData(checkPerm);
+    } = useSecurityData(checkPerm, currentOrganizationId, isSuperAdmin);
 
     useEffect(() => {
         if (!authLoading) {
@@ -126,6 +128,15 @@ const SecurityManagement: React.FC = () => {
         setPermissions
     );
 
+    // Thêm logic phân biệt trạng thái
+    const getOrganizationStatus = () => {
+        if (isSuperAdmin) return { type: "super", message: "Super Admin Access" };
+        if (!currentOrganizationId) return { type: "no-org", message: "No Organization Assigned" };
+        return { type: "org", message: user?.organization?.name || "Unknown Organization" };
+    };
+
+    const orgStatus = getOrganizationStatus();
+
     const tabs = [
         { id: "users", label: "Users", icon: Users, count: tabCounts.users, permission: "view_user" },
         { id: "roles", label: "Roles", icon: Shield, count: tabCounts.roles, permission: "view_role" },
@@ -141,6 +152,41 @@ const SecurityManagement: React.FC = () => {
 
     const renderUsers = () => (
         <div className="space-y-4">
+            {isOrganizationUser && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-center">
+                        <Building className="h-4 w-4 text-blue-600 mr-2" />
+                        <span className="text-sm text-blue-800">
+                            Showing users from organization: <strong>{user?.organization?.name}</strong>
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            {!isSuperAdmin && (
+                <div
+                    className={`border rounded-lg p-3 ${
+                        orgStatus.type === "no-org" ? "bg-yellow-50 border-yellow-200" : "bg-blue-50 border-blue-200"
+                    }`}
+                >
+                    <div className="flex items-center">
+                        <Building
+                            className={`h-4 w-4 mr-2 ${
+                                orgStatus.type === "no-org" ? "text-yellow-600" : "text-blue-600"
+                            }`}
+                        />
+                        <span
+                            className={`text-sm ${orgStatus.type === "no-org" ? "text-yellow-800" : "text-blue-800"}`}
+                        >
+                            {orgStatus.type === "no-org"
+                                ? "Showing users without organization assignment"
+                                : `Showing users from organization:`}
+                            {orgStatus.type === "org" && <strong>{orgStatus.message}</strong>}
+                        </span>
+                    </div>
+                </div>
+            )}
+
             <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-4">
                     <SearchInput
