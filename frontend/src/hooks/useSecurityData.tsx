@@ -5,7 +5,8 @@ import { isDefaultDjangoPermission, itemsPerPageConfig, filterByOrganization } f
 export const useSecurityData = (
     checkPermission: (permission: string) => boolean,
     currentOrganizationId?: string | null,
-    isSuperAdmin: boolean = false
+    isSuperAdmin: boolean = false,
+    currentUser?: any
 ) => {
     const [users, setUsers] = useState<UserDetail[]>([]);
     const [roles, setRoles] = useState<RoleDetail[]>([]);
@@ -32,7 +33,8 @@ export const useSecurityData = (
                         const filteredUsers = filterByOrganization.users(
                             data,
                             currentOrganizationId ?? null,
-                            isSuperAdmin
+                            isSuperAdmin,
+                            currentUser
                         );
                         setUsers(filteredUsers);
                     })
@@ -44,7 +46,8 @@ export const useSecurityData = (
                         const filteredRoles = filterByOrganization.roles(
                             data,
                             currentOrganizationId ?? null,
-                            isSuperAdmin
+                            isSuperAdmin,
+                            currentUser
                         );
                         setRoles(filteredRoles);
                     })
@@ -56,7 +59,8 @@ export const useSecurityData = (
                         const filteredGroups = filterByOrganization.groups(
                             data,
                             currentOrganizationId ?? null,
-                            isSuperAdmin
+                            isSuperAdmin,
+                            currentUser
                         );
                         setGroups(filteredGroups);
                     })

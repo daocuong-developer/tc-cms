@@ -77,7 +77,7 @@ const SecurityManagement: React.FC = () => {
         filteredGroups,
         fetchAllData,
         resetFilters,
-    } = useSecurityData(checkPerm, currentOrganizationId, isSuperAdmin);
+    } = useSecurityData(checkPerm, currentOrganizationId, isSuperAdmin, user);
 
     useEffect(() => {
         if (!authLoading) {
@@ -152,17 +152,6 @@ const SecurityManagement: React.FC = () => {
 
     const renderUsers = () => (
         <div className="space-y-4">
-            {isOrganizationUser && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <div className="flex items-center">
-                        <Building className="h-4 w-4 text-blue-600 mr-2" />
-                        <span className="text-sm text-blue-800">
-                            Showing users from organization: <strong>{user?.organization?.name}</strong>
-                        </span>
-                    </div>
-                </div>
-            )}
-
             {!isSuperAdmin && (
                 <div
                     className={`border rounded-lg p-3 ${
@@ -180,8 +169,8 @@ const SecurityManagement: React.FC = () => {
                         >
                             {orgStatus.type === "no-org"
                                 ? "Showing users without organization assignment"
-                                : `Showing users from organization:`}
-                            {orgStatus.type === "org" && <strong>{orgStatus.message}</strong>}
+                                : `Showing users from organization: `}
+                            {orgStatus.type === "org" && <strong>{user?.organization?.name}</strong>}
                         </span>
                     </div>
                 </div>

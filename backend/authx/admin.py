@@ -4,16 +4,16 @@ from .models import User, Role, Permission, Organization, Department, Group, Cus
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ('email', 'full_name', 'is_staff', 'is_active', 'organization', 'department', 'get_roles')
-    search_fields = ('email', 'full_name', 'organization__name', 'department__name')
+    list_display = ('email', 'full_name', 'is_staff', 'is_active', 'organization', 'department', 'get_roles', 'get_groups')
+    search_fields = ('email', 'full_name', 'organization__name', 'department__name', 'groups__name')
     ordering = ('email',)
-    list_filter = ('is_staff', 'is_active', 'roles', 'organization', 'department')
+    list_filter = ('is_staff', 'is_active', 'roles', 'organization', 'department', 'groups')
 
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
         ('Personal info', {'fields': ('full_name', 'username')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser')}),
-        ('Organization and Department', {'fields': ('organization', 'department')}),
+        ('Organization and Department', {'fields': ('organization', 'department','groups')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )
 
@@ -24,13 +24,17 @@ class UserAdmin(BaseUserAdmin):
         }),
         ('Organization and Department', {
             'classes': ('wide',),
-            'fields': ('organization', 'department'),
+            'fields': ('organization', 'department','groups'),
         }),
     )
 
     def get_roles(self, obj):
         return ", ".join([role.name for role in obj.roles.all()])
     get_roles.short_description = 'Roles'
+
+    def get_groups(self, obj):
+        return ", ".join([group.name for group in obj.groups.all()])
+    get_groups.short_description = 'Groups'
 
 # Registers the Role model
 @admin.register(Role)

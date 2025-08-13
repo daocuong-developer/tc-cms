@@ -93,27 +93,71 @@ export const itemsPerPageConfig = {
 
 // Organization filtering functions
 export const filterByOrganization = {
-    users: (users: UserDetail[], organizationId: string | number | null, isSuperAdmin: boolean): UserDetail[] => {
+    users: (
+        users: UserDetail[],
+        organizationId: string | number | null,
+        isSuperAdmin: boolean,
+        currentUser?: any
+    ): UserDetail[] => {
         // Super Admin thấy tất cả users
         if (isSuperAdmin) return users;
 
-        // User chưa thuộc tổ chức nào - chỉ thấy users không thuộc tổ chức nào VÀ không phải super admin
+        // Kiểm tra xem user hiện tại có phải là Org Admin không (có thể quản lý nhiều tổ chức)
+        const isOrgAdmin = currentUser?.roles?.some(
+            (role: any) => role.name.toLowerCase().includes("org") && role.name.toLowerCase().includes("admin")
+        );
+
+        // User chưa thuộc tổ chức nào
         if (!organizationId) {
+            // Nếu là Org Admin (không thuộc tổ chức cụ thể) -> có thể thấy tất cả users
+            if (isOrgAdmin) {
+                return users;
+            }
+
+            // User thường không thuộc tổ chức -> chỉ thấy users không thuộc tổ chức nào VÀ không phải super admin
             return users.filter((user) => !user.organization && !user.is_superuser && !checkSuperAdmin(user));
         }
 
-        // User thuộc tổ chức - chỉ thấy users cùng tổ chức VÀ không phải super admin
-        return users.filter(
-            (user) => user.organization?.id === organizationId && !user.is_superuser && !checkSuperAdmin(user)
-        );
+        // User thuộc tổ chức - chỉ thấy users cùng tổ chức (bao gồm cả super admin cùng tổ chức)
+        return users.filter((user) => {
+            // Kiểm tra user có cùng organization không
+            const sameOrganization = user.organization?.id === organizationId;
+
+            // Nếu không cùng organization thì loại bỏ
+            if (!sameOrganization) return false;
+
+            // Nếu cùng organization thì hiển thị tất cả (kể cả super admin)
+            return true;
+        });
     },
 
-    roles: (roles: RoleDetail[], organizationId: string | number | null, isSuperAdmin: boolean): RoleDetail[] => {
+    roles: (
+        roles: RoleDetail[],
+        organizationId: string | number | null,
+        isSuperAdmin: boolean,
+        currentUser?: any
+    ): RoleDetail[] => {
         // Super Admin thấy tất cả roles
         if (isSuperAdmin) return roles;
 
-        // User chưa thuộc tổ chức nào - chỉ thấy system roles cơ bản (không bao gồm admin roles)
+        // Kiểm tra xem user hiện tại có phải là Org Admin không
+        const isOrgAdmin = currentUser?.roles?.some(
+            (role: any) => role.name.toLowerCase().includes("org") && role.name.toLowerCase().includes("admin")
+        );
+
+        // User chưa thuộc tổ chức nào
         if (!organizationId) {
+            // Nếu là Org Admin -> thấy nhiều roles hơn để quản lý
+            if (isOrgAdmin) {
+                return roles.filter((role) => {
+                    const roleName = role.name.toLowerCase();
+                    // Chỉ loại trừ system super admin roles
+                    const isSystemSuperAdminRole = roleName.includes("super");
+                    return !isSystemSuperAdminRole;
+                });
+            }
+
+            // User thường không thuộc tổ chức -> chỉ thấy system roles cơ bản
             return roles.filter((role) => {
                 const roleName = role.name.toLowerCase();
                 // Loại trừ các role admin/super admin
@@ -130,17 +174,18 @@ export const filterByOrganization = {
             });
         }
 
-        // User thuộc tổ chức - loại trừ super admin roles
+        // User thuộc tổ chức - loại trừ system super admin roles
         return roles.filter((role) => {
             const roleName = role.name.toLowerCase();
             const roleDesc = role.description?.toLowerCase() || "";
 
-            // Loại trừ super admin roles
-            const isSuperAdminRole =
+            // Chỉ loại trừ system super admin roles (không phải organization admin)
+            const isSystemSuperAdminRole =
                 roleName.includes("super") || (roleName.includes("admin") && roleName.includes("system"));
 
-            if (isSuperAdminRole) return false;
+            if (isSystemSuperAdminRole) return false;
 
+            // Cho phép tất cả các role khác bao gồm organization admin
             return (
                 roleName.includes("admin") ||
                 roleName.includes("user") ||
@@ -152,12 +197,33 @@ export const filterByOrganization = {
         });
     },
 
-    groups: (groups: GroupDetail[], organizationId: string | number | null, isSuperAdmin: boolean): GroupDetail[] => {
+    groups: (
+        groups: GroupDetail[],
+        organizationId: string | number | null,
+        isSuperAdmin: boolean,
+        currentUser?: any
+    ): GroupDetail[] => {
         // Super Admin thấy tất cả groups
         if (isSuperAdmin) return groups;
 
-        // User chưa thuộc tổ chức nào - chỉ thấy public groups
+        // Kiểm tra xem user hiện tại có phải là Org Admin không
+        const isOrgAdmin = currentUser?.roles?.some(
+            (role: any) => role.name.toLowerCase().includes("org") && role.name.toLowerCase().includes("admin")
+        );
+
+        // User chưa thuộc tổ chức nào
         if (!organizationId) {
+            // Nếu là Org Admin -> thấy nhiều groups hơn để quản lý
+            if (isOrgAdmin) {
+                return groups.filter((group) => {
+                    const groupName = group.name.toLowerCase();
+                    // Chỉ loại trừ system super admin groups
+                    const isSystemSuperAdminGroup = groupName.includes("super");
+                    return !isSystemSuperAdminGroup;
+                });
+            }
+
+            // User thường không thuộc tổ chức -> chỉ thấy public groups
             return groups.filter((group) => {
                 const groupName = group.name.toLowerCase();
                 const groupDesc = group.description?.toLowerCase() || "";
@@ -177,17 +243,18 @@ export const filterByOrganization = {
             });
         }
 
-        // User thuộc tổ chức - logic như cũ nhưng loại trừ super admin groups
+        // User thuộc tổ chức - logic như cũ nhưng chỉ loại trừ system super admin groups
         return groups.filter((group) => {
             const groupName = group.name.toLowerCase();
             const groupDesc = group.description?.toLowerCase() || "";
 
-            // Loại trừ super admin groups
-            const isSuperAdminGroup =
+            // Chỉ loại trừ system super admin groups
+            const isSystemSuperAdminGroup =
                 groupName.includes("super") || (groupName.includes("admin") && groupName.includes("system"));
 
-            if (isSuperAdminGroup) return false;
+            if (isSystemSuperAdminGroup) return false;
 
+            // Kiểm tra group có roles liên quan đến organization không
             const hasOrganizationRoles = group.roles?.some((role) => {
                 const roleName = role.name.toLowerCase();
                 return (
@@ -198,6 +265,7 @@ export const filterByOrganization = {
                 );
             });
 
+            // Cho phép groups liên quan đến organization
             return (
                 groupName.includes("org") ||
                 groupName.includes("department") ||
