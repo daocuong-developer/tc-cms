@@ -15,8 +15,16 @@ import {
     CheckCircle,
     XCircle,
     AlertCircle,
+    Users,
 } from "lucide-react";
-import { UserDetail, RoleDetail, DepartmentDetail, OrganizationDetail, securityService } from "@services/securityApi";
+import {
+    UserDetail,
+    RoleDetail,
+    DepartmentDetail,
+    OrganizationDetail,
+    securityService,
+    GroupDetail,
+} from "@services/securityApi";
 
 interface UserModalProps {
     isOpen: boolean;
@@ -29,10 +37,13 @@ interface UserModalProps {
 
 const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, roles, onSave }) => {
     const [organizations, setOrganizations] = useState<OrganizationDetail[]>([]);
+    const [loadingOrganizations, setLoadingOrganizations] = useState(false);
     const [filteredDepartments, setFilteredDepartments] = useState<DepartmentDetail[]>([]);
     const [allDepartments, setAllDepartments] = useState<DepartmentDetail[]>([]);
     const [loadingDepartments, setLoadingDepartments] = useState(false);
-    const [loadingOrganizations, setLoadingOrganizations] = useState(false);
+    const [filteredGroups, setFilteredGroups] = useState<GroupDetail[]>([]);
+    const [allGroups, setAllGroups] = useState<GroupDetail[]>([]);
+    const [loadingGroups, setLoadingGroups] = useState(false);
     const [formData, setFormData] = useState({
         username: "",
         email: "",
@@ -44,24 +55,26 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
         address: "",
         role_ids: [] as string[],
         department_id: "",
+        group_ids: [] as string[],
         is_active: true,
         notes: "",
     });
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setSaving] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
-
     useEffect(() => {
         const loadInitialData = async () => {
             if (!isOpen) return;
 
             setLoadingOrganizations(true);
             setLoadingDepartments(true);
+            setLoadingGroups(true);
 
             try {
-                const [orgs, depts] = await Promise.all([
+                const [orgs, depts, groupsData] = await Promise.all([
                     securityService.getOrganizations(),
                     securityService.getDepartments(true),
+                    securityService.getGroups(),
                 ]);
 
                 const normalizedDepts = depts.map((d) => ({
@@ -71,11 +84,13 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
 
                 setOrganizations(orgs);
                 setAllDepartments(normalizedDepts);
+                setAllGroups(groupsData);
             } catch (error) {
                 console.error("❌ Error loading initial data:", error);
             } finally {
                 setLoadingOrganizations(false);
                 setLoadingDepartments(false);
+                setLoadingGroups(false);
             }
         };
 
@@ -106,6 +121,31 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
     }, [filteredDepartments, formData.department_id]);
 
     useEffect(() => {
+        if (formData.organization_id && allGroups.length > 0) {
+            const filtered = allGroups.filter(
+                (group) =>
+                    String(group.organization_id ?? group.organization?.id ?? "") === String(formData.organization_id)
+            );
+            setFilteredGroups(filtered);
+        } else {
+            setFilteredGroups([]);
+        }
+    }, [formData.organization_id, allGroups]);
+
+    // Đảm bảo set lại department_id và group_id sau khi dữ liệu load xong
+    useEffect(() => {
+        if (user && (mode === "view" || mode === "edit") && allDepartments.length > 0 && allGroups.length > 0) {
+            setFormData((prev) => ({
+                ...prev,
+                organization_id: user.organization?.id?.toString() || user.organization_id?.toString() || "",
+                department_id: user.department?.id?.toString() || user.department_id?.toString() || "",
+                // group_id: user.group?.id?.toString() || user.group_id?.toString() || "",
+                group_ids: user.groups?.map((g) => g.id.toString()) || [],
+            }));
+        }
+    }, [allDepartments, allGroups, user, mode]);
+
+    useEffect(() => {
         if (user && (mode === "view" || mode === "edit")) {
             setFormData({
                 username: user.username || "",
@@ -118,6 +158,8 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                 address: user.address || "",
                 role_ids: user.roles?.map((r) => r.id) || [],
                 department_id: user.department?.id?.toString() || user.department_id?.toString() || "",
+                // group_id: user.group?.id?.toString() || user.group_id?.toString() || "",
+                group_ids: user.groups?.map((g) => g.id.toString()) || [],
                 is_active: user.is_active ?? true,
                 notes: user.notes || "",
             });
@@ -133,6 +175,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                 address: "",
                 role_ids: [],
                 department_id: "",
+                group_id: "",
                 is_active: true,
                 notes: "",
             });
@@ -169,14 +212,6 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
             newErrors.phone = "Please enter a valid phone number";
         }
 
-        // if (!formData.organization_id) {
-        //     newErrors.organization_id = "Please select an organization";
-        // }
-
-        // if (!formData.department_id) {
-        //     newErrors.department_id = "Please select a department";
-        // }
-
         if (formData.role_ids.length === 0) {
             newErrors.role_ids = "Please select at least one role";
         }
@@ -194,9 +229,15 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
         setSaving(true);
         try {
             const dataToSend = { ...formData };
+
             if (mode === "edit" && !formData.password.trim()) {
                 delete dataToSend.password;
             }
+
+            console.log("[User Submit]", {
+                ...dataToSend,
+                password: dataToSend.password,
+            });
 
             await onSave(dataToSend);
             onClose();
@@ -210,12 +251,11 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
     // ✅ Handle organization change
     const handleOrganizationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newOrgId = e.target.value;
-        console.log("🏢 Organization changed to:", newOrgId);
-
         setFormData({
             ...formData,
             organization_id: newOrgId,
-            department_id: "", // Reset department khi đổi organization
+            department_id: "",
+            group_ids: [] as string[],
         });
     };
 
@@ -497,7 +537,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                                 </label>
                                                 <select
                                                     value={formData.organization_id}
-                                                    onChange={handleOrganizationChange} // ✅ Use dedicated handler
+                                                    onChange={handleOrganizationChange}
                                                     disabled={isReadOnly || loadingOrganizations}
                                                     className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-200 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-600 transition-all duration-200 bg-white shadow-sm ${
                                                         errors.organization_id
@@ -522,7 +562,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                                         {errors.organization_id}
                                                     </p>
                                                 )}
-                                                {/* ✅ Debug info - remove in production */}
+
                                                 {process.env.NODE_ENV === "development" && (
                                                     <div className="mt-2 text-xs text-gray-500">
                                                         Selected: {formData.organization_id || "none"}
@@ -573,7 +613,6 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                                         {errors.department_id}
                                                     </p>
                                                 )}
-                                                {/* ✅ Debug info - remove in production */}
                                                 {process.env.NODE_ENV === "development" && (
                                                     <div className="mt-2 text-xs text-gray-500">
                                                         Available: {filteredDepartments.length} departments
@@ -590,6 +629,45 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, mode, role
                                                             create a department first.
                                                         </p>
                                                     )}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                                                    <div className="w-6 h-6 bg-orange-500 rounded-lg flex items-center justify-center mr-2">
+                                                        <Users className="h-4 w-4 text-white" />
+                                                    </div>
+                                                    Group
+                                                </label>
+                                                <select
+                                                    multiple
+                                                    value={formData.group_ids}
+                                                    onChange={(e) => {
+                                                        const values = Array.from(
+                                                            e.target.selectedOptions,
+                                                            (opt) => opt.value
+                                                        );
+                                                        setFormData({ ...formData, group_ids: values });
+                                                    }}
+                                                    className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-500 transition-all duration-200 bg-white shadow-sm ${
+                                                        errors.role_ids
+                                                            ? "border-red-300 focus:border-red-500 focus:ring-red-200"
+                                                            : "border-gray-200 hover:border-purple-300"
+                                                    }`}
+                                                    disabled={isReadOnly || !formData.group_ids || loadingGroups}
+                                                    size={Math.min(roles.length, 5)}
+                                                >
+                                                    {filteredGroups.map((group) => (
+                                                        <option key={group.id} value={group.id}>
+                                                            {group.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {errors.group_id && (
+                                                    <p className="mt-2 text-sm text-red-600 flex items-center">
+                                                        <XCircle className="h-4 w-4 mr-1" />
+                                                        {errors.group_id}
+                                                    </p>
+                                                )}
                                             </div>
 
                                             <div className="md:col-span-2">

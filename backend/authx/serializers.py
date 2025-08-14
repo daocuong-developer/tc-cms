@@ -121,17 +121,14 @@ class UserSerializer(serializers.ModelSerializer):
         many=True, queryset=Group.objects.all(), source='groups', write_only=True, required=False
     )
 
-    is_active = serializers.BooleanField(read_only=True)
-    is_online = serializers.BooleanField(read_only=True)
-    last_login = serializers.DateTimeField(read_only=True)
-    last_logout = serializers.DateTimeField(read_only=True)
-
     class Meta:
         model = User
-        fields = ['id', 'email', 'full_name', 'username', 'is_staff', 'is_superuser',
-                  'last_login', 'is_active', 'is_online', 'last_logout',
-                  'roles', 'role_ids', 'organization', 'organization_id',
-                  'department', 'department_id', 'groups', 'group_ids']
+        fields = [
+            'id', 'email', 'full_name', 'username', 'is_staff', 'is_superuser',
+            'last_login', 'is_active', 'is_online', 'last_logout',
+            'roles', 'role_ids', 'organization', 'organization_id',
+            'department', 'department_id', 'groups', 'group_ids'
+        ]
         read_only_fields = ['id', 'last_login', 'is_active', 'is_online']
         extra_kwargs = {
             'username': {'required': False},
@@ -139,7 +136,6 @@ class UserSerializer(serializers.ModelSerializer):
         }
 
     def validate(self, attrs):
-        # Lấy organization từ dữ liệu mới hoặc từ instance hiện tại (trường hợp update)
         organization = attrs.get('organization') or getattr(self.instance, 'organization', None)
         department = attrs.get('department') or getattr(self.instance, 'department', None)
 
@@ -154,12 +150,17 @@ class UserSerializer(serializers.ModelSerializer):
         roles_data = validated_data.pop('roles', [])
         groups_data = validated_data.pop('groups', [])
         password = validated_data.pop('password', None)
+
         user = User(**validated_data)
         if password is not None:
             user.set_password(password)
         user.save()
-        user.roles.set(roles_data)
-        user.groups.set(groups_data)
+
+        if roles_data:
+            user.roles.set(roles_data)
+        if groups_data:
+            user.groups.set(groups_data)
+
         return user
 
     def update(self, instance, validated_data):
@@ -167,28 +168,18 @@ class UserSerializer(serializers.ModelSerializer):
         groups_data = validated_data.pop('groups', None)
         password = validated_data.pop('password', None)
 
-        instance.email = validated_data.get('email', instance.email)
-        instance.full_name = validated_data.get('full_name', instance.full_name)
-        instance.username = validated_data.get('username', instance.username)
-        instance.is_staff = validated_data.get('is_staff', instance.is_staff)
-        instance.is_superuser = validated_data.get('is_superuser', instance.is_superuser)
-
-        if 'department' in validated_data:
-            instance.department = validated_data['department']
-        if 'organization' in validated_data:
-            instance.organization = validated_data['organization']
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
 
         if password:
             instance.set_password(password)
-
         instance.save()
 
         if roles_data is not None:
             instance.roles.set(roles_data)
-
         if groups_data is not None:
             instance.groups.set(groups_data)
-            
+
         return instance
 
 

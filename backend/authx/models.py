@@ -88,6 +88,12 @@ class User(AbstractUser):
         related_name='users'
     )
 
+    groups = models.ManyToManyField(
+        'Group',
+        related_name='users',
+        blank=True
+    )
+    
     class Meta:
         verbose_name = 'User'
         verbose_name_plural = 'Users'

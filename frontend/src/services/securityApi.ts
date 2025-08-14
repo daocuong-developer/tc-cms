@@ -32,19 +32,18 @@ export interface UserDetail {
         created_at: string;
         updated_at: string;
     };
+    groups: {
+        id: string;
+        name: string;
+        organization_id: number;
+    }[];
+
     is_active: boolean;
     is_online: boolean;
+    is_superuser: boolean;
     last_login: string;
     last_logout: string;
     roles: { id: string; name: string; permissions: { codename: string }[] }[];
-}
-
-export interface RoleDetail {
-    id: string;
-    name: string;
-    description: string;
-    permissions: { id: string; name: string; codename: string }[];
-    user_count: number;
 }
 
 export interface OrganizationDetail {
@@ -59,6 +58,8 @@ export interface GroupDetail {
     id: string;
     name: string;
     description: string;
+    organization_id: number;
+    organization?: OrganizationDetail;
     members: number;
     roles: { id: string; name: string }[];
     users: { id: string; username: string; full_name?: string }[];
@@ -68,9 +69,21 @@ export interface DepartmentDetail {
     id: string;
     name: string;
     description: string;
-    members: number;
-    roles: { id: string; name: string }[];
+    organization_id: number;
     organization?: OrganizationDetail;
+    members: number;
+    roles?: { id: string; name: string }[];
+}
+
+export interface RoleDetail {
+    id: string;
+    name: string;
+    description: string;
+    organization_id?: number;
+    organization?: OrganizationDetail;
+    permissions: { id: string; name: string; codename: string }[];
+    user_count: number;
+    is_system_role?: boolean;
 }
 
 export interface PermissionDetail {
@@ -107,7 +120,7 @@ export interface ContractDetail {
 }
 
 export interface ContractCreatePayload {
-    customer_id: string; // The ID of the customer
+    customer_id: string;
     deviceName: string;
     organization: string;
     totalAmount: number;
@@ -167,6 +180,7 @@ export const securityService = {
     // Role Management
     getRoles: async (): Promise<RoleDetail[]> => {
         const response = await securityApi.get<RoleDetail[]>("/auth/roles/");
+        console.log("response.data", response.data);
         return response.data;
     },
     createRole: async (roleData: any): Promise<RoleDetail> => {
