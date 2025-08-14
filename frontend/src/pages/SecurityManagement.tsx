@@ -29,13 +29,12 @@ const SecurityManagement: React.FC = () => {
 
     // Check if user is Super Admin
     const isSuperAdmin = checkSuperAdmin(user);
+    const currentOrganizationId = user?.organization?.id;
+
     const checkPerm = useCallback(
         (permission: string) => createPermission(permission, isSuperAdmin, hasPermission),
         [isSuperAdmin, hasPermission]
     );
-
-    const currentOrganizationId = user?.organization?.id;
-    const isOrganizationUser = !isSuperAdmin && currentOrganizationId;
 
     // Custom hooks
     const {
@@ -353,113 +352,117 @@ const SecurityManagement: React.FC = () => {
         </div>
     );
 
-    const renderRoles = () => (
-        <div className="space-y-4">
-            <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-4">
-                    <div className="relative">
-                        <SearchInput
-                            value={searchTerm}
-                            onChange={(value) => {
-                                setSearchTerm(value);
-                                setCurrentPage(1);
-                            }}
-                            placeholder="Search roles..."
-                        />
+    const renderRoles = () => {
+        return (
+            <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center space-x-4">
+                        <div className="relative">
+                            <SearchInput
+                                value={searchTerm}
+                                onChange={(value) => {
+                                    setSearchTerm(value);
+                                    setCurrentPage(1);
+                                }}
+                                placeholder="Search roles..."
+                            />
+                        </div>
                     </div>
-                </div>
-                {checkPerm("add_role") && (
-                    <button
-                        onClick={roleActions.create}
-                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                    >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Role
-                    </button>
-                )}
-            </div>
-
-            {loadingData ? (
-                <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-                    <span className="ml-2 text-gray-600">Loading roles...</span>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredRoles.map((role) => (
-                        <div
-                            key={role.id}
-                            className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-all duration-200 hover:border-green-300"
+                    {checkPerm("add_role") && (
+                        <button
+                            onClick={roleActions.create}
+                            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                         >
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center">
-                                    <div className="p-2 bg-green-100 rounded-lg mr-3">
-                                        <Shield className="h-6 w-6 text-green-600" />
-                                    </div>
-                                    <div>
-                                        <h4 className="text-lg font-medium text-gray-900">{role.name}</h4>
-                                        <p className="text-sm text-gray-500 flex items-center">
-                                            <Users className="h-4 w-4 mr-1" />
-                                            {role.user_count} users
-                                        </p>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Create Role
+                        </button>
+                    )}
+                </div>
+
+                {loadingData ? (
+                    <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                        <span className="ml-2 text-gray-600">Loading roles...</span>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredRoles.map((role) => (
+                            <div
+                                key={role.id}
+                                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-all duration-200 hover:border-green-300"
+                            >
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="flex items-center">
+                                        <div className="p-2 bg-green-100 rounded-lg mr-3">
+                                            <Shield className="h-6 w-6 text-green-600" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-lg font-medium text-gray-900">{role.name}</h4>
+                                            <p className="text-sm text-gray-500 flex items-center">
+                                                <Users className="h-4 w-4 mr-1" />
+                                                {role.user_count} users
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <p className="text-sm text-gray-600 mb-4 line-clamp-2">{role.description}</p>
-                            <div className="space-y-2">
-                                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Permissions</p>
-                                <div className="flex flex-wrap gap-1">
-                                    {role.permissions?.slice(0, 3).map((permission, index) => (
-                                        <span
-                                            key={index}
-                                            className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{role.description}</p>
+                                <div className="space-y-2">
+                                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                        Permissions
+                                    </p>
+                                    <div className="flex flex-wrap gap-1">
+                                        {role.permissions?.slice(0, 3).map((permission, index) => (
+                                            <span
+                                                key={index}
+                                                className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                                            >
+                                                {permission.name?.replace("_", " ")}
+                                            </span>
+                                        ))}
+                                        {role.permissions && role.permissions.length > 3 && (
+                                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                                +{role.permissions.length - 3} more
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end space-x-2">
+                                    {checkPerm("view_role") && (
+                                        <button
+                                            onClick={() => roleActions.view(role)}
+                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            title="View role"
                                         >
-                                            {permission.name?.replace("_", " ")}
-                                        </span>
-                                    ))}
-                                    {role.permissions && role.permissions.length > 3 && (
-                                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                                            +{role.permissions.length - 3} more
-                                        </span>
+                                            <Eye className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                    {checkPerm("change_role") && (
+                                        <button
+                                            onClick={() => roleActions.edit(role)}
+                                            className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                            title="Edit role"
+                                        >
+                                            <Edit className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                    {checkPerm("delete_role") && (
+                                        <button
+                                            onClick={() => handleDeleteRole(role)}
+                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Delete role"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
                                     )}
                                 </div>
                             </div>
-
-                            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end space-x-2">
-                                {checkPerm("view_role") && (
-                                    <button
-                                        onClick={() => roleActions.view(role)}
-                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                        title="View role"
-                                    >
-                                        <Eye className="h-4 w-4" />
-                                    </button>
-                                )}
-                                {checkPerm("change_role") && (
-                                    <button
-                                        onClick={() => roleActions.edit(role)}
-                                        className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                        title="Edit role"
-                                    >
-                                        <Edit className="h-4 w-4" />
-                                    </button>
-                                )}
-                                {checkPerm("delete_role") && (
-                                    <button
-                                        onClick={() => handleDeleteRole(role)}
-                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                        title="Delete role"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     const renderGroups = () => (
         <div className="space-y-4">
