@@ -138,6 +138,18 @@ class UserSerializer(serializers.ModelSerializer):
             'email': {'required': True},
         }
 
+    def validate(self, attrs):
+        # Lấy organization từ dữ liệu mới hoặc từ instance hiện tại (trường hợp update)
+        organization = attrs.get('organization') or getattr(self.instance, 'organization', None)
+        department = attrs.get('department') or getattr(self.instance, 'department', None)
+
+        if organization and department:
+            if department.organization != organization:
+                raise serializers.ValidationError({
+                    'department_id': 'Department does not belong to the selected organization.'
+                })
+        return attrs
+
     def create(self, validated_data):
         roles_data = validated_data.pop('roles', [])
         groups_data = validated_data.pop('groups', [])
